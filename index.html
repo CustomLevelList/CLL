@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Impossible Levels List | Pro Panel</title>
+    <title>Impossible Levels List | Live Server</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <style>
         :root {
             --bg: #030303; --sidebar: #080808; --card: #111;
@@ -15,20 +19,17 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; overflow-x: hidden; }
 
-        /* --- Sidebar & Nav --- */
         .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
         .nav-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
         .nav-item { padding: 12px 15px; cursor: pointer; border-radius: 8px; color: var(--text-dim); transition: 0.2s; margin-bottom: 4px; font-weight: 500; font-size: 0.9rem; }
         .nav-item:hover, .nav-item.active { background: #1a1a1a; color: white; }
         .nav-item.active { border-left: 4px solid var(--accent); background: linear-gradient(90deg, #1a1a1a, transparent); }
 
-        /* --- Main Content --- */
         main { flex-grow: 1; margin-left: 280px; padding: 50px; max-width: 1300px; }
         .view { display: none; animation: fadeIn 0.4s ease; }
         .view.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- Level Cards --- */
         .level-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; display: flex; height: 160px; overflow: hidden; position: relative; }
         .level-img { width: 280px; object-fit: cover; border-right: 1px solid var(--border); background: #000; }
         .level-main { flex: 1; padding: 25px; display: flex; flex-direction: column; justify-content: center; }
@@ -38,9 +39,7 @@
         
         .admin-tools { display: flex; flex-direction: column; gap: 5px; background: #000; padding: 10px; border-left: 1px solid var(--border); }
         .tool-btn { padding: 5px; background: #222; border: none; color: white; cursor: pointer; border-radius: 4px; font-size: 10px; }
-        .tool-btn:hover { background: var(--accent); }
 
-        /* --- UI Elements --- */
         table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; margin-top: 20px; }
         th { text-align: left; padding: 15px 20px; background: #1a1a1a; color: var(--text-dim); font-size: 0.8rem; }
         td { padding: 15px 20px; border-bottom: 1px solid var(--border); }
@@ -48,12 +47,7 @@
         input, select, textarea { width: 100%; padding: 14px; background: #0a0a0a; border: 1px solid var(--border); color: white; border-radius: 8px; margin-top: 10px; outline: none; }
         button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; background: var(--accent); color: white; margin-top: 15px; }
 
-        /* --- Image Upload Box --- */
-        .upload-area {
-            border: 2px dashed var(--border); border-radius: 8px; padding: 30px; text-align: center;
-            margin-top: 10px; cursor: pointer; transition: 0.3s; background: #050505;
-        }
-        .upload-area:hover { border-color: var(--accent); background: #0a0a0a; }
+        .upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 30px; text-align: center; margin-top: 10px; cursor: pointer; background: #050505; }
         .upload-preview { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; margin-top: 10px; display: none; }
 
         .role-badge { padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
@@ -80,7 +74,6 @@
     <div id="placementModal" class="modal">
         <div class="modal-card">
             <h3>Assign Rank</h3>
-            <p style="color:var(--text-dim); font-size:0.8rem; margin: 10px 0;">Where should this level be placed?</p>
             <input type="number" id="acceptRank" placeholder="Rank (e.g., 1)" min="1">
             <button style="width:100%; background:var(--success);" onclick="confirmAcceptLvl()">Accept & Place</button>
             <button style="width:100%; background:#222; margin-top:10px;" onclick="closeModals()">Cancel</button>
@@ -136,7 +129,7 @@
                 <input type="text" id="sl_n" placeholder="Level Name">
                 <input type="text" id="sl_c" placeholder="Creator">
                 <input type="text" id="sl_f" placeholder="Required FPS">
-                <div class="upload-area" onclick="document.getElementById('lvlFileInput').click()" id="dropZone">
+                <div class="upload-area" onclick="document.getElementById('lvlFileInput').click()">
                     <span id="uploadStatus">Click or Drop Level Banner Here</span>
                     <img id="prevImg" class="upload-preview">
                     <input type="file" id="lvlFileInput" hidden accept="image/*" onchange="handleFile(this.files[0])">
@@ -163,206 +156,162 @@
     </main>
 
     <script>
-        // --- LOAD DATA ---
-        let users = JSON.parse(localStorage.getItem('il_u')) || [{u:"Nova", p:"Password", r:"owner"}];
-        let levels = JSON.parse(localStorage.getItem('il_l')) || [];
-        let records = JSON.parse(localStorage.getItem('il_r')) || [];
-        let lvlSubs = JSON.parse(localStorage.getItem('il_ls')) || [];
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyByYGrLxkBs_EiSG2w0ijpc1hXwb7IxJs8",
+            authDomain: "ill-panel.firebaseapp.com",
+            databaseURL: "https://ill-panel-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "ill-panel",
+            storageBucket: "ill-panel.firebasestorage.app",
+            messagingSenderId: "1043886120476",
+            appId: "1:1043886120476:web:740ecef8b199da56ccc9d9"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // --- STATE ---
+        let users = [];
+        let levels = [];
+        let records = [];
+        let lvlSubs = [];
         let session = JSON.parse(sessionStorage.getItem('il_s'));
         let currentImgBase64 = "";
 
-        // Ensure Nova is owner
-        let nova = users.find(x => x.u === "Nova");
-        if(nova) nova.r = "owner";
+        // --- SYNC DATA FROM SERVER ---
+        function sync() {
+            db.ref('users').on('value', snap => { users = Object.values(snap.val() || {}); renderUsers(); });
+            db.ref('levels').on('value', snap => { levels = snap.val() || []; render(); });
+            db.ref('records').on('value', snap => { records = Object.values(snap.val() || {}); render(); });
+            db.ref('lvlSubs').on('value', snap => { lvlSubs = Object.values(snap.val() || {}); render(); });
+        }
 
         // --- AUTH ---
         function login() {
-            const uInput = document.getElementById('au').value.trim();
-            const pInput = document.getElementById('ap').value;
-            const user = users.find(x => x.u.toLowerCase() === uInput.toLowerCase() && x.p === pInput);
-            
-            if(user) { 
-                session = user; 
-                sessionStorage.setItem('il_s', JSON.stringify(user)); 
-                init(); 
-            } else {
-                alert("Incorrect username or password.");
-            }
+            const u = document.getElementById('au').value.trim();
+            const p = document.getElementById('ap').value;
+            db.ref('users/' + u).once('value', snap => {
+                const user = snap.val();
+                if(user && user.p === p) {
+                    session = user;
+                    sessionStorage.setItem('il_s', JSON.stringify(user));
+                    init();
+                } else alert("Invalid Login");
+            });
         }
 
         function signup() {
             const u = document.getElementById('au').value.trim();
             const p = document.getElementById('ap').value;
-            
-            if(!u || !p) return alert("Please fill in both fields.");
-            if(users.find(x => x.u.toLowerCase() === u.toLowerCase())) return alert("Username already exists.");
-            
-            users.push({u, p, r:"user"}); 
-            localStorage.setItem('il_u', JSON.stringify(users)); 
-            alert("Account created! Please log in now.");
-            // Reset fields
-            document.getElementById('au').value = "";
-            document.getElementById('ap').value = "";
+            if(!u || !p) return;
+            db.ref('users/' + u).set({ u, p, r: u === "Nova" ? "owner" : "user" });
+            alert("Account created! Log in now.");
         }
 
         function logout() { sessionStorage.removeItem('il_s'); location.reload(); }
 
-        // --- NAVIGATION ---
-        function setView(id) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
-            document.getElementById('v-'+id).classList.add('active');
-            if(document.getElementById('n-'+id)) document.getElementById('n-'+id).classList.add('active');
-            render();
-            if(id === 'search') renderUsers();
-        }
-
-        // --- FILE HANDLING ---
+        // --- ACTIONS ---
         function handleFile(file) {
-            if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 currentImgBase64 = e.target.result;
-                const prev = document.getElementById('prevImg');
-                prev.src = currentImgBase64;
-                prev.style.display = 'block';
-                document.getElementById('uploadStatus').innerText = "Image Loaded!";
+                document.getElementById('prevImg').src = currentImgBase64;
+                document.getElementById('prevImg').style.display = 'block';
             };
             reader.readAsDataURL(file);
         }
 
-        // --- ACTIONS ---
         function sendLvlSub() {
-            if(!currentImgBase64) return alert("Upload an image first.");
-            lvlSubs.push({
-                id: Date.now(), sender: session.u,
-                n: document.getElementById('sl_n').value, c: document.getElementById('sl_c').value,
-                f: document.getElementById('sl_f').value, i: currentImgBase64, s: 'pending'
+            const id = Date.now();
+            db.ref('lvlSubs/' + id).set({
+                id, sender: session.u, s: 'pending',
+                n: document.getElementById('sl_n').value,
+                c: document.getElementById('sl_c').value,
+                f: document.getElementById('sl_f').value,
+                i: currentImgBase64
             });
-            localStorage.setItem('il_ls', JSON.stringify(lvlSubs));
-            alert("Level Submitted!");
-            currentImgBase64 = ""; document.getElementById('prevImg').style.display='none';
-            document.getElementById('sl_n').value = ""; document.getElementById('sl_c').value = "";
-            render();
+            alert("Submitted!");
         }
 
         function sendSub() {
-            const lvlName = document.getElementById('sl').value;
-            const video = document.getElementById('sv').value;
-            const perc = document.getElementById('sp').value;
-            if(!video || !perc) return alert("Missing info");
-            
-            records.push({id:Date.now(), u:session.u, l:lvlName, v:video, p:perc, s:'pending'});
-            localStorage.setItem('il_r', JSON.stringify(records));
-            alert("Record sent!");
-            render();
+            const id = Date.now();
+            db.ref('records/' + id).set({
+                id, u: session.u, l: document.getElementById('sl').value,
+                v: document.getElementById('sv').value, p: document.getElementById('sp').value, s: 'pending'
+            });
+            alert("Record Sent!");
         }
 
         // --- ADMIN ---
-        let pendingLvlIdToAccept = null;
-        function promptAcceptLvl(id) { pendingLvlIdToAccept = id; document.getElementById('placementModal').style.display = 'flex'; }
-        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+        let pendingLvlId = null;
+        function promptAcceptLvl(id) { pendingLvlId = id; document.getElementById('placementModal').style.display = 'flex'; }
+        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display='none'); }
 
         function confirmAcceptLvl() {
             const rank = parseInt(document.getElementById('acceptRank').value);
-            let sub = lvlSubs.find(x => x.id === pendingLvlIdToAccept);
-            if(!sub || !rank) return;
-            sub.s = 'accepted';
-            levels.splice(rank - 1, 0, { id: sub.id, n: sub.n, c: sub.c, f: sub.f, i: sub.i });
-            localStorage.setItem('il_ls', JSON.stringify(lvlSubs));
-            localStorage.setItem('il_l', JSON.stringify(levels));
-            closeModals(); render();
+            const sub = lvlSubs.find(x => x.id == pendingLvlId);
+            if(!sub || isNaN(rank)) return;
+            
+            levels.splice(rank - 1, 0, { n: sub.n, c: sub.c, f: sub.f, i: sub.i });
+            db.ref('levels').set(levels);
+            db.ref('lvlSubs/' + pendingLvlId + '/s').set('accepted');
+            closeModals();
         }
 
-        function actRec(id, s) { records.find(x => x.id === id).s = s; localStorage.setItem('il_r', JSON.stringify(records)); render(); }
-        function denyLvlSub(id) { lvlSubs.find(x => x.id === id).s = 'denied'; localStorage.setItem('il_ls', JSON.stringify(lvlSubs)); render(); }
-        function promote(name) { users.find(x => x.u === name).r = 'admin'; localStorage.setItem('il_u', JSON.stringify(users)); renderUsers(); }
+        function actRec(id, status) { db.ref('records/' + id + '/s').set(status); }
+        function promote(u) { db.ref('users/' + u + '/r').set('admin'); }
+        function move(i, d) {
+            let t = i + d; if(t < 0 || t >= levels.length) return;
+            [levels[i], levels[t]] = [levels[t], levels[i]];
+            db.ref('levels').set(levels);
+        }
+        function del(i) { if(confirm("Delete?")) { levels.splice(i,1); db.ref('levels').set(levels); } }
 
-        // --- RENDERERS ---
+        // --- RENDER ---
         function render() {
-            // Main List
             document.getElementById('listCont').innerHTML = levels.map((l, i) => {
-                const wrs = records.filter(x => x.l === l.n && x.s === 'approved').sort((a,b) => parseInt(b.p) - parseInt(a.p));
-                const wr = wrs[0];
+                const wr = records.filter(x => x.l === l.n && x.s === 'approved').sort((a,b) => b.p - a.p)[0];
                 return `<div class="level-card">
                     <img src="${l.i}" class="level-img">
                     <div class="level-main">
-                        <div><span class="rank-num">#${i+1}</span><span style="font-size:1.4rem; font-weight:bold;">${l.n}</span>${(wr&&parseInt(wr.p)===100)?'<span class="completed-tag">[COMPLETED]</span>':''}</div>
-                        <p style="color:var(--text-dim)">by ${l.c} | ${l.f} FPS</p>
-                        <div class="wr-badge">🏆 WR: ${wr?`${wr.u} (${wr.p})`:'None'}</div>
+                        <div><span class="rank-num">#${i+1}</span><span style="font-size:1.4rem; font-weight:bold;">${l.n}</span></div>
+                        <p>by ${l.c} | ${l.f} FPS</p>
+                        <div class="wr-badge">🏆 WR: ${wr?`${wr.u} (${wr.p}%)`:'None'}</div>
                     </div>
-                    ${['owner','admin'].includes(session.r)?`<div class="admin-tools"><button onclick="move(${i},-1)">▲</button><button onclick="move(${i},1)">▼</button><button onclick="del(${i})" style="background:var(--delete)">✕</button></div>`:''}
+                    ${['owner','admin'].includes(session.r)?`<div class="admin-tools"><button onclick="move(${i},-1)">▲</button><button onclick="move(${i},1)">▼</button><button onclick="del(${i})">✕</button></div>`:''}
                 </div>`;
             }).join('');
 
-            // Admin Badges
             const pLvls = lvlSubs.filter(x => x.s === 'pending');
             const pRecs = records.filter(x => x.s === 'pending');
             document.getElementById('plc').innerText = pLvls.length;
             document.getElementById('pc').innerText = pRecs.length;
 
-            // User Submissions
-            document.getElementById('myLvlSubsCont').innerHTML = lvlSubs.filter(x => x.sender === session.u).map(s => `
-                <div style="background:#111; padding:10px; margin-top:5px; border-radius:5px; display:flex; justify-content:space-between;">
-                    <span>${s.n}</span> <span style="font-weight:bold; color:${s.s==='accepted'?'var(--success)':(s.s==='denied'?'var(--delete)':'var(--gold)')}">${s.s.toUpperCase()}</span>
-                </div>
-            `).join('');
-
-            // Pending Admin Containers
-            document.getElementById('pendingLvlCont').innerHTML = pLvls.map(l => `
-                <div style="background:var(--card); padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <div><b>${l.n}</b> by ${l.c}</div>
-                    <div><button onclick="promptAcceptLvl(${l.id})">Accept</button> <button onclick="denyLvlSub(${l.id})" style="background:var(--delete)">Deny</button></div>
-                </div>
-            `).join('');
-
-            document.getElementById('pendingCont').innerHTML = pRecs.map(r => `
-                <div style="background:var(--card); padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <div><b>${r.u}</b>: ${r.p} on ${r.l}</div>
-                    <div><button onclick="actRec(${r.id},'approved')">Approve</button> <button onclick="actRec(${r.id},'denied')" style="background:var(--delete)">Deny</button></div>
-                </div>
-            `).join('');
-
+            document.getElementById('pendingLvlCont').innerHTML = pLvls.map(l => `<div style="background:#111; padding:15px; margin-top:10px;">${l.n} by ${l.c} <button onclick="promptAcceptLvl(${l.id})">Accept</button></div>`).join('');
+            document.getElementById('pendingCont').innerHTML = pRecs.map(r => `<div style="background:#111; padding:15px; margin-top:10px;">${r.u} on ${r.l} <button onclick="actRec(${r.id},'approved')">Approve</button></div>`).join('');
             document.getElementById('sl').innerHTML = levels.map(l => `<option>${l.n}</option>`).join('');
-            
-            // Profile Box
-            document.getElementById('profBox').innerHTML = `
-                <div style="background:var(--card); padding:40px; border-radius:15px; border:1px solid var(--border);">
-                    <h1>${session.u}</h1><span class="role-badge ${session.r==='owner'?'r-owner':(session.r==='admin'?'r-admin':'r-user')}">${session.r.toUpperCase()}</span>
-                </div>`;
+            document.getElementById('profBox').innerHTML = `<h1>${session.u}</h1><span class="role-badge r-${session.r}">${session.r.toUpperCase()}</span>`;
         }
 
         function renderUsers() {
-            const query = document.getElementById('userSearchBox').value.toLowerCase();
-            document.getElementById('userDirCont').innerHTML = users.filter(u => u.u.toLowerCase().includes(query)).map(u => `
-                <tr><td><b>${u.u}</b></td><td><span class="role-badge ${u.r==='owner'?'r-owner':(u.r==='admin'?'r-admin':'r-user')}">${u.r.toUpperCase()}</span></td>
-                <td>${(session.r==='owner'&&u.r==='user')?`<button onclick="promote('${u.u}')">Make Admin</button>`:''}</td></tr>
-            `).join('');
+            document.getElementById('userDirCont').innerHTML = users.map(u => `<tr><td>${u.u}</td><td><span class="role-badge r-${u.r}">${u.r}</span></td><td>${session.r === 'owner' ? `<button onclick="promote('${u.u}')">Promote</button>` : ''}</td></tr>`).join('');
         }
 
-        function move(idx, dir) {
-            let target = idx + dir; if(target < 0 || target >= levels.length) return;
-            [levels[idx], levels[target]] = [levels[target], levels[idx]];
-            localStorage.setItem('il_l', JSON.stringify(levels)); render();
+        function setView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('v-'+id).classList.add('active');
         }
-        function del(idx) { if(confirm("Delete?")) { levels.splice(idx,1); localStorage.setItem('il_l', JSON.stringify(levels)); render(); } }
 
-        // --- INIT ---
         function init() {
-            if(!session) {
-                document.getElementById('authOverlay').style.display = 'flex';
-                document.getElementById('mainSidebar').style.display = 'none';
-                document.getElementById('mainBody').style.display = 'none';
-                return;
-            }
+            if(!session) return;
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('mainSidebar').style.display = 'flex';
             document.getElementById('mainBody').style.display = 'block';
             document.getElementById('un').innerText = session.u;
             if(['owner','admin'].includes(session.r)) document.getElementById('adminPanel').style.display='block';
-            render();
+            sync();
         }
-        init();
+        if(session) init();
     </script>
 </body>
 </html>
