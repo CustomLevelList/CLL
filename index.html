@@ -16,7 +16,7 @@
         body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; overflow-x: hidden; }
 
         /* --- Sidebar & Nav --- */
-        .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; }
+        .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
         .nav-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
         .nav-item { padding: 12px 15px; cursor: pointer; border-radius: 8px; color: var(--text-dim); transition: 0.2s; margin-bottom: 4px; font-weight: 500; font-size: 0.9rem; }
         .nav-item:hover, .nav-item.active { background: #1a1a1a; color: white; }
@@ -87,7 +87,7 @@
         </div>
     </div>
 
-    <div class="sidebar">
+    <div class="sidebar" id="mainSidebar" style="display:none;">
         <h1 style="font-size: 1.4rem; letter-spacing: -1px;">ILL <span style="color:var(--accent)">100</span></h1>
         
         <div class="nav-label">General</div>
@@ -104,8 +104,8 @@
         
         <div id="adminPanel" style="display:none">
             <div class="nav-label">Administration</div>
-            <div class="nav-item" onclick="setView('pendrec')" style="color:var(--gold)">Pending Records (<span id="pc">0</span>)</div>
-            <div class="nav-item" onclick="setView('pendlvl')" style="color:var(--accent)">Pending Levels (<span id="plc">0</span>)</div>
+            <div class="nav-item" id="n-pendrec" onclick="setView('pendrec')" style="color:var(--gold)">Pending Records (<span id="pc">0</span>)</div>
+            <div class="nav-item" id="n-pendlvl" onclick="setView('pendlvl')" style="color:var(--accent)">Pending Levels (<span id="plc">0</span>)</div>
         </div>
 
         <div style="margin-top:auto; font-size:0.8rem; border-top:1px solid var(--border); padding-top:20px;">
@@ -114,7 +114,7 @@
         </div>
     </div>
 
-    <main>
+    <main id="mainBody" style="display:none;">
         <div id="v-list" class="view active">
             <h2>The List</h2><div id="listCont" style="margin-top:20px;"></div>
         </div>
@@ -136,13 +136,11 @@
                 <input type="text" id="sl_n" placeholder="Level Name">
                 <input type="text" id="sl_c" placeholder="Creator">
                 <input type="text" id="sl_f" placeholder="Required FPS">
-                
                 <div class="upload-area" onclick="document.getElementById('lvlFileInput').click()" id="dropZone">
                     <span id="uploadStatus">Click or Drop Level Banner Here</span>
                     <img id="prevImg" class="upload-preview">
                     <input type="file" id="lvlFileInput" hidden accept="image/*" onchange="handleFile(this.files[0])">
                 </div>
-
                 <button onclick="sendLvlSub()" style="width:100%">Send to Approvals</button>
             </div>
             <h3 style="margin-top:40px;">Your Submissions</h3>
@@ -151,7 +149,12 @@
 
         <div id="v-submit" class="view">
             <h2>Submit Record</h2>
-            <div style="max-width:500px; margin-top:20px;"><select id="sl"></select><input type="text" id="sv" placeholder="Video Link"><input type="text" id="sp" placeholder="Percentage"><button onclick="sendSub()">Submit</button></div>
+            <div style="max-width:500px; margin-top:20px;">
+                <select id="sl"></select>
+                <input type="text" id="sv" placeholder="Video Link">
+                <input type="text" id="sp" placeholder="Percentage">
+                <button onclick="sendSub()">Submit</button>
+            </div>
         </div>
 
         <div id="v-pendrec" class="view"><h2>Pending Records</h2><div id="pendingCont"></div></div>
@@ -160,12 +163,59 @@
     </main>
 
     <script>
+        // --- LOAD DATA ---
         let users = JSON.parse(localStorage.getItem('il_u')) || [{u:"Nova", p:"Password", r:"owner"}];
         let levels = JSON.parse(localStorage.getItem('il_l')) || [];
         let records = JSON.parse(localStorage.getItem('il_r')) || [];
         let lvlSubs = JSON.parse(localStorage.getItem('il_ls')) || [];
         let session = JSON.parse(sessionStorage.getItem('il_s'));
         let currentImgBase64 = "";
+
+        // Ensure Nova is owner
+        let nova = users.find(x => x.u === "Nova");
+        if(nova) nova.r = "owner";
+
+        // --- AUTH ---
+        function login() {
+            const uInput = document.getElementById('au').value.trim();
+            const pInput = document.getElementById('ap').value;
+            const user = users.find(x => x.u.toLowerCase() === uInput.toLowerCase() && x.p === pInput);
+            
+            if(user) { 
+                session = user; 
+                sessionStorage.setItem('il_s', JSON.stringify(user)); 
+                init(); 
+            } else {
+                alert("Incorrect username or password.");
+            }
+        }
+
+        function signup() {
+            const u = document.getElementById('au').value.trim();
+            const p = document.getElementById('ap').value;
+            
+            if(!u || !p) return alert("Please fill in both fields.");
+            if(users.find(x => x.u.toLowerCase() === u.toLowerCase())) return alert("Username already exists.");
+            
+            users.push({u, p, r:"user"}); 
+            localStorage.setItem('il_u', JSON.stringify(users)); 
+            alert("Account created! Please log in now.");
+            // Reset fields
+            document.getElementById('au').value = "";
+            document.getElementById('ap').value = "";
+        }
+
+        function logout() { sessionStorage.removeItem('il_s'); location.reload(); }
+
+        // --- NAVIGATION ---
+        function setView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
+            document.getElementById('v-'+id).classList.add('active');
+            if(document.getElementById('n-'+id)) document.getElementById('n-'+id).classList.add('active');
+            render();
+            if(id === 'search') renderUsers();
+        }
 
         // --- FILE HANDLING ---
         function handleFile(file) {
@@ -181,52 +231,34 @@
             reader.readAsDataURL(file);
         }
 
-        // Add Drag and Drop listeners
-        const dz = document.getElementById('dropZone');
-        dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.style.borderColor = 'var(--accent)'; });
-        dz.addEventListener('dragleave', () => { dz.style.borderColor = 'var(--border)'; });
-        dz.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dz.style.borderColor = 'var(--border)';
-            handleFile(e.dataTransfer.files[0]);
-        });
-
-        // --- AUTH & CORE ---
-        function login() {
-            const user = users.find(x => x.u === document.getElementById('au').value && x.p === document.getElementById('ap').value);
-            if(user) { session = user; sessionStorage.setItem('il_s', JSON.stringify(user)); init(); } else alert("Fail");
-        }
-        function signup() {
-            const u = document.getElementById('au').value, p = document.getElementById('ap').value;
-            if(!u || !p || users.find(x => x.u === u)) return alert("Error");
-            users.push({u, p, r:"user"}); localStorage.setItem('il_u', JSON.stringify(users)); alert("Created!");
-        }
-        function logout() { sessionStorage.removeItem('il_s'); location.reload(); }
-
-        function setView(id) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
-            document.getElementById('v-'+id).classList.add('active');
-            if(document.getElementById('n-'+id)) document.getElementById('n-'+id).classList.add('active');
-            render();
-            if(id === 'search') renderUsers();
-        }
-
-        // --- LEVEL LOGIC ---
+        // --- ACTIONS ---
         function sendLvlSub() {
-            if(!currentImgBase64) return alert("Please upload an image banner first!");
+            if(!currentImgBase64) return alert("Upload an image first.");
             lvlSubs.push({
                 id: Date.now(), sender: session.u,
                 n: document.getElementById('sl_n').value, c: document.getElementById('sl_c').value,
                 f: document.getElementById('sl_f').value, i: currentImgBase64, s: 'pending'
             });
             localStorage.setItem('il_ls', JSON.stringify(lvlSubs));
-            alert("Submitted!");
+            alert("Level Submitted!");
             currentImgBase64 = ""; document.getElementById('prevImg').style.display='none';
-            document.getElementById('uploadStatus').innerText = "Click or Drop Level Banner Here";
+            document.getElementById('sl_n').value = ""; document.getElementById('sl_c').value = "";
             render();
         }
 
+        function sendSub() {
+            const lvlName = document.getElementById('sl').value;
+            const video = document.getElementById('sv').value;
+            const perc = document.getElementById('sp').value;
+            if(!video || !perc) return alert("Missing info");
+            
+            records.push({id:Date.now(), u:session.u, l:lvlName, v:video, p:perc, s:'pending'});
+            localStorage.setItem('il_r', JSON.stringify(records));
+            alert("Record sent!");
+            render();
+        }
+
+        // --- ADMIN ---
         let pendingLvlIdToAccept = null;
         function promptAcceptLvl(id) { pendingLvlIdToAccept = id; document.getElementById('placementModal').style.display = 'flex'; }
         function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
@@ -242,20 +274,13 @@
             closeModals(); render();
         }
 
+        function actRec(id, s) { records.find(x => x.id === id).s = s; localStorage.setItem('il_r', JSON.stringify(records)); render(); }
         function denyLvlSub(id) { lvlSubs.find(x => x.id === id).s = 'denied'; localStorage.setItem('il_ls', JSON.stringify(lvlSubs)); render(); }
-
-        // --- USER MGMT ---
-        function renderUsers() {
-            const query = document.getElementById('userSearchBox').value.toLowerCase();
-            document.getElementById('userDirCont').innerHTML = users.filter(u => u.u.toLowerCase().includes(query)).map(u => `
-                <tr><td><b>${u.u}</b></td><td><span class="role-badge ${u.r==='owner'?'r-owner':(u.r==='admin'?'r-admin':'r-user')}">${u.r.toUpperCase()}</span></td>
-                <td>${(session.r==='owner'&&u.r==='user')?`<button onclick="promote('${u.u}')">Make Admin</button>`:''}</td></tr>
-            `).join('');
-        }
         function promote(name) { users.find(x => x.u === name).r = 'admin'; localStorage.setItem('il_u', JSON.stringify(users)); renderUsers(); }
 
-        // --- RENDER ---
+        // --- RENDERERS ---
         function render() {
+            // Main List
             document.getElementById('listCont').innerHTML = levels.map((l, i) => {
                 const wrs = records.filter(x => x.l === l.n && x.s === 'approved').sort((a,b) => parseInt(b.p) - parseInt(a.p));
                 const wr = wrs[0];
@@ -270,16 +295,49 @@
                 </div>`;
             }).join('');
 
+            // Admin Badges
             const pLvls = lvlSubs.filter(x => x.s === 'pending');
+            const pRecs = records.filter(x => x.s === 'pending');
             document.getElementById('plc').innerText = pLvls.length;
+            document.getElementById('pc').innerText = pRecs.length;
+
+            // User Submissions
+            document.getElementById('myLvlSubsCont').innerHTML = lvlSubs.filter(x => x.sender === session.u).map(s => `
+                <div style="background:#111; padding:10px; margin-top:5px; border-radius:5px; display:flex; justify-content:space-between;">
+                    <span>${s.n}</span> <span style="font-weight:bold; color:${s.s==='accepted'?'var(--success)':(s.s==='denied'?'var(--delete)':'var(--gold)')}">${s.s.toUpperCase()}</span>
+                </div>
+            `).join('');
+
+            // Pending Admin Containers
             document.getElementById('pendingLvlCont').innerHTML = pLvls.map(l => `
                 <div style="background:var(--card); padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                     <div><b>${l.n}</b> by ${l.c}</div>
                     <div><button onclick="promptAcceptLvl(${l.id})">Accept</button> <button onclick="denyLvlSub(${l.id})" style="background:var(--delete)">Deny</button></div>
                 </div>
             `).join('');
-            
+
+            document.getElementById('pendingCont').innerHTML = pRecs.map(r => `
+                <div style="background:var(--card); padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div><b>${r.u}</b>: ${r.p} on ${r.l}</div>
+                    <div><button onclick="actRec(${r.id},'approved')">Approve</button> <button onclick="actRec(${r.id},'denied')" style="background:var(--delete)">Deny</button></div>
+                </div>
+            `).join('');
+
             document.getElementById('sl').innerHTML = levels.map(l => `<option>${l.n}</option>`).join('');
+            
+            // Profile Box
+            document.getElementById('profBox').innerHTML = `
+                <div style="background:var(--card); padding:40px; border-radius:15px; border:1px solid var(--border);">
+                    <h1>${session.u}</h1><span class="role-badge ${session.r==='owner'?'r-owner':(session.r==='admin'?'r-admin':'r-user')}">${session.r.toUpperCase()}</span>
+                </div>`;
+        }
+
+        function renderUsers() {
+            const query = document.getElementById('userSearchBox').value.toLowerCase();
+            document.getElementById('userDirCont').innerHTML = users.filter(u => u.u.toLowerCase().includes(query)).map(u => `
+                <tr><td><b>${u.u}</b></td><td><span class="role-badge ${u.r==='owner'?'r-owner':(u.r==='admin'?'r-admin':'r-user')}">${u.r.toUpperCase()}</span></td>
+                <td>${(session.r==='owner'&&u.r==='user')?`<button onclick="promote('${u.u}')">Make Admin</button>`:''}</td></tr>
+            `).join('');
         }
 
         function move(idx, dir) {
@@ -289,9 +347,17 @@
         }
         function del(idx) { if(confirm("Delete?")) { levels.splice(idx,1); localStorage.setItem('il_l', JSON.stringify(levels)); render(); } }
 
+        // --- INIT ---
         function init() {
-            if(!session) return;
-            document.getElementById('authOverlay').style.display='none';
+            if(!session) {
+                document.getElementById('authOverlay').style.display = 'flex';
+                document.getElementById('mainSidebar').style.display = 'none';
+                document.getElementById('mainBody').style.display = 'none';
+                return;
+            }
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('mainSidebar').style.display = 'flex';
+            document.getElementById('mainBody').style.display = 'block';
             document.getElementById('un').innerText = session.u;
             if(['owner','admin'].includes(session.r)) document.getElementById('adminPanel').style.display='block';
             render();
