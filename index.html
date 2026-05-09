@@ -27,7 +27,8 @@
         .nav-item.active { border-left: 4px solid var(--accent); background: linear-gradient(90deg, #1a1a1a, transparent); }
 
         /* Main Content */
-        main { flex-grow: 1; margin-left: 280px; padding: 50px; max-width: 1300px; }
+        /* Added padding-bottom so the footer doesn't hide content */
+        main { flex-grow: 1; margin-left: 280px; padding: 50px; padding-bottom: 100px; max-width: 1300px; }
         .view { display: none; animation: fadeIn 0.4s ease; }
         .view.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -65,6 +66,18 @@
         .role-badge { padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
         .r-owner { background: rgba(255,71,71,0.1); color: var(--owner); border: 1px solid var(--owner); }
         .r-admin { background: rgba(88,101,242,0.1); color: var(--accent); border: 1px solid var(--accent); }
+
+        /* --- NEW STYLES: Chat, Mods, and Footer --- */
+        #chatBox { height: 400px; background: #050505; border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 15px; background: #111; border-radius: 8px; border-left: 3px solid var(--accent); max-width: 80%; }
+        .msg-meta { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px; font-weight:bold; }
+        .msg-admin { border-left-color: var(--owner); background: rgba(255, 71, 71, 0.05); }
+        
+        .mod-online { display: inline-block; width: 10px; height: 10px; background: var(--success); border-radius: 50%; margin-right: 8px; box-shadow: 0 0 8px var(--success); }
+        
+        footer { position: fixed; bottom: 0; left: 280px; right: 0; padding: 15px; background: rgba(3,3,3,0.95); border-top: 1px solid var(--border); display: flex; justify-content: center; z-index: 90; backdrop-filter: blur(5px); }
+        .discord-btn { background: #5865F2; color: white; text-decoration: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
+        .discord-btn:hover { background: #4752c4; }
     </style>
 </head>
 <body>
@@ -95,6 +108,10 @@
         <div class="nav-item active" id="n-list" onclick="setView('list')">Main Rankings</div>
         <div class="nav-item" id="n-leader" onclick="setView('leader')">Leaderboard</div>
         <div class="nav-item" id="n-search" onclick="setView('search')">User Directory</div>
+
+        <div class="nav-label">Community</div>
+        <div class="nav-item" id="n-chat" onclick="setView('chat')">Community Chat</div>
+        <div class="nav-item" id="n-mods" onclick="setView('mods')">Active Moderators</div>
 
         <div class="nav-label">Activity</div>
         <div class="nav-item" id="n-submitlvl" onclick="setView('submitlvl')">Submit Level</div>
@@ -129,6 +146,21 @@
             <table><thead><tr><th>User</th><th>Role</th><th>Mod Tools</th></tr></thead><tbody id="userDirCont"></tbody></table>
         </div>
 
+        <div id="v-chat" class="view">
+            <h2>Community Chat</h2>
+            <div id="chatBox" style="margin-top:20px;"></div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <input type="text" id="chatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendChat()">
+                <button onclick="sendChat()" style="margin:0; height:45px; margin-top:10px;">Send</button>
+            </div>
+            <p id="spamWarn" style="color:var(--delete); font-size:0.85rem; margin-top:8px; display:none;">Anti-spam active. Please wait 3 seconds between messages.</p>
+        </div>
+
+        <div id="v-mods" class="view">
+            <h2>Active Moderators</h2>
+            <div id="modListCont" style="margin-top:20px;"></div>
+        </div>
+
         <div id="v-submitlvl" class="view">
             <h2>Propose New Level</h2>
             <div style="max-width:500px; margin-top:20px; background:var(--card); padding:25px; border-radius:10px; border:1px solid var(--border);">
@@ -159,6 +191,13 @@
         <div id="v-pendlvl" class="view"><h2>Level Queue</h2><div id="pendingLvlCont"></div></div>
     </main>
 
+    <footer>
+        <a href="https://discord.gg/CnsfxA8DZz" target="_blank" class="discord-btn">
+            <svg width="24" height="24" viewBox="0 0 127.14 96.36" fill="white"><path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z"/></svg>
+            Join the Official Discord
+        </a>
+    </footer>
+
     <script>
         // --- FIREBASE CONFIG ---
         const firebaseConfig = {
@@ -172,10 +211,16 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        
+        // NEW: Discord Webhook URL
+        const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502757681730031626/qi01GHmcXFCBLyquwc36V1aFHfwq58wamflzlaflx0FClvV9F91RtUT78cFmRjCddl8w";
 
         let session = JSON.parse(sessionStorage.getItem('il_s'));
         let levels = [], records = [], lvlSubs = [], users = [];
         let currentImgBase64 = "";
+        
+        // NEW: Chat variables
+        let lastMsgTime = 0;
 
         // --- POINT CALCULATION (1000 SCALE) ---
         function getLevelPoints(rank) {
@@ -194,6 +239,30 @@
             db.ref('records').on('value', snap => { records = Object.values(snap.val() || {}); render(); renderLeaderboard(); });
             db.ref('lvlSubs').on('value', snap => { lvlSubs = Object.values(snap.val() || {}); render(); });
             db.ref('users').on('value', snap => { users = Object.values(snap.val() || {}); renderUsers(); });
+            
+            // NEW: Listen to Chat
+            db.ref('chat').limitToLast(50).on('value', snap => {
+                const msgs = Object.values(snap.val() || {});
+                document.getElementById('chatBox').innerHTML = msgs.map(m => `
+                    <div class="msg ${['owner','admin'].includes(m.r) ? 'msg-admin' : ''}">
+                        <div class="msg-meta">${m.u} [${m.r.toUpperCase()}]</div>
+                        <div style="word-wrap: break-word;">${m.m}</div>
+                    </div>
+                `).join('');
+                document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+            });
+
+            // NEW: Listen to Active Moderators Status
+            db.ref('status').on('value', snap => {
+                const onlineUsers = Object.values(snap.val() || {});
+                const mods = onlineUsers.filter(u => u.r === 'admin' || u.r === 'owner');
+                
+                document.getElementById('modListCont').innerHTML = mods.map(m => `
+                    <div style="background:var(--card); padding:15px; border:1px solid var(--border); margin-bottom:10px; border-radius:8px;">
+                        <span class="mod-online"></span> <b>${m.u}</b> - <span style="color:var(--accent); font-size:0.8rem; text-transform:uppercase;">${m.r}</span>
+                    </div>
+                `).join('') || '<p style="color:var(--text-dim)">No moderators are currently online.</p>';
+            });
         }
 
         // --- RENDERING ---
@@ -249,7 +318,7 @@
             `).join('');
         }
 
-        // --- AUTH ---
+        // --- AUTH & ONLINE PRESENCE ---
         function login() {
             const u = document.getElementById('au').value.trim();
             const p = document.getElementById('ap').value;
@@ -262,6 +331,7 @@
                 } else alert("Invalid username or password.");
             });
         }
+        
         function signup() {
             const u = document.getElementById('au').value.trim();
             const p = document.getElementById('ap').value;
@@ -269,7 +339,36 @@
             db.ref('users/' + u).set({ u, p, r: u === "Nova" ? "owner" : "user" });
             alert("Registered! You can now log in.");
         }
+
         function logout() { sessionStorage.removeItem('il_s'); location.reload(); }
+
+        // NEW: Handles online status for Active Moderators tab
+        function initOnlineStatus() {
+            const myStatusRef = db.ref('status/' + session.u);
+            db.ref('.info/connected').on('value', function(snap) {
+                if (snap.val() === false) return;
+                myStatusRef.onDisconnect().remove();
+                myStatusRef.set({ u: session.u, r: session.r });
+            });
+        }
+
+        // --- NEW: CHAT LOGIC ---
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if(!msg) return;
+
+            const now = Date.now();
+            if(now - lastMsgTime < 3000) {
+                document.getElementById('spamWarn').style.display = 'block';
+                return;
+            }
+
+            db.ref('chat').push({ u: session.u, r: session.r, m: msg, t: now });
+            input.value = '';
+            document.getElementById('spamWarn').style.display = 'none';
+            lastMsgTime = now;
+        }
 
         // --- FILE MGMT ---
         function handleFile(file) {
@@ -302,24 +401,60 @@
             setView('list');
         }
 
+        // --- NEW: DISCORD WEBHOOK ---
+        async function triggerWebhook(subData) {
+            const payload = {
+                embeds: [{
+                    title: "🚨 New Level Added to the List! 🚨",
+                    color: 5793266, // Blurple
+                    thumbnail: { url: subData.i },
+                    fields: [
+                        { name: "Level Name", value: subData.n, inline: true },
+                        { name: "Creator", value: subData.c, inline: true },
+                        { name: "Level ID", value: subData.lid, inline: false },
+                        { name: "Accepted By", value: session.u, inline: false }
+                    ]
+                }]
+            };
+
+            try {
+                await fetch(DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                console.error("Webhook failed to send", err);
+            }
+        }
+
         // --- ADMIN ---
         function actRec(id, s) { db.ref('records/' + id + '/s').set(s); }
+        
         function move(i, d) {
             let t = i + d; if(t < 0 || t >= levels.length) return;
             [levels[i], levels[t]] = [levels[t], levels[i]];
             db.ref('levels').set(levels);
         }
+        
         function del(i) { if(confirm("Delete level forever?")) { levels.splice(i,1); db.ref('levels').set(levels); } }
 
         let activePendingId = null;
         function promptAccept(id) { activePendingId = id; document.getElementById('placementModal').style.display = 'flex'; }
+        
         function closeModals() { document.querySelectorAll('.modal').forEach(m => { if(m.id !== 'authOverlay') m.style.display='none'; }); }
+        
         function confirmAcceptLvl() {
             const rank = parseInt(document.getElementById('acceptRank').value);
             const sub = lvlSubs.find(x => x.id == activePendingId);
+            
             levels.splice(rank - 1, 0, { n: sub.n, c: sub.c, f: sub.f, i: sub.i, lid: sub.lid });
             db.ref('levels').set(levels);
             db.ref('lvlSubs/' + activePendingId + '/s').set('accepted');
+            
+            // Trigger Discord Webhook on accept
+            triggerWebhook(sub);
+
             closeModals();
         }
 
@@ -338,8 +473,11 @@
             document.getElementById('mainBody').style.display = 'block';
             document.getElementById('un').innerText = session.u;
             if(['owner','admin'].includes(session.r)) document.getElementById('adminPanel').style.display='block';
-            sync();
+            
+            initOnlineStatus(); // Start tracking mod presence
+            sync();             // Start fetching data
         }
+
         if(session) init();
     </script>
 </body>
