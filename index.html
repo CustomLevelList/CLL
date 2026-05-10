@@ -52,8 +52,9 @@
             height: 500px; background: #050505; border: 1px solid var(--border); border-radius: 12px; 
             overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;
         }
-        .msg { padding: 12px 18px; background: #111; border-radius: 10px; border-left: 4px solid var(--accent); max-width: 80%; }
-        .msg-u { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
+        .msg { padding: 12px 18px; background: #111; border-radius: 10px; border-left: 4px solid var(--accent); max-width: 80%; position: relative; }
+        .msg.system { border-left-color: var(--gold); }
+        .msg-u { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; margin-bottom: 4px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
 
         /* Dashed Upload Area */
         .submit-card { background: var(--card); padding: 40px; border-radius: 20px; border: 1px solid var(--border); max-width: 600px; margin: 0 auto; }
@@ -106,6 +107,7 @@
             <div class="nav-item" onclick="navTo('adminp', this)" style="color:var(--owner)"><i class="fa-solid fa-shield-halved"></i> Admin Controls</div>
             <div class="nav-item" onclick="navTo('pendlvl', this)"><i class="fa-solid fa-layer-group"></i> Level Queue (<span id="plc">0</span>)</div>
             <div class="nav-item" onclick="navTo('pendrec', this)"><i class="fa-solid fa-hourglass-half"></i> Record Queue (<span id="pc">0</span>)</div>
+            <div class="nav-item" onclick="navTo('reports', this)"><i class="fa-solid fa-flag"></i> Reports (<span id="rc">0</span>)</div>
         </div>
 
         <div style="margin-top:auto; border-top:1px solid var(--border); padding-top:20px;">
@@ -222,6 +224,12 @@
             <div id="pendLvlCont"></div>
         </div>
 
+        <div id="v-reports" class="view">
+            <h2>User Reports</h2>
+            <p style="color:var(--text-dim); margin-bottom:20px;">Manage flagged messages from the community chat.</p>
+            <div id="reportsCont"></div>
+        </div>
+
     </main>
 
     <div id="authOverlay" style="position:fixed; inset:0; background:black; display:flex; justify-content:center; align-items:center; z-index:5000;">
@@ -239,6 +247,9 @@
     </div>
 
     <script>
+        // REPLACE THIS WITH YOUR DISCORD WEBHOOK URL!
+        const DISCORD_WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL_HERE";
+
         const firebaseConfig = {
             apiKey: "AIzaSyByYGrLxkBs_EiSG2w0ijpc1hXwb7IxJs8",
             authDomain: "ill-panel.firebaseapp.com",
@@ -253,7 +264,36 @@
 
         let session = null;
         let isRegisterMode = false;
-        let levels = [], records = [], users = [], pendingLvlData = [], curFilter = 'all', curImg = "";
+        let levels = [], records = [], users = [], pendingLvlData = [], chatReports = [], curFilter = 'all', curImg = "";
+
+        // NEW: Auto-Login on Load
+        window.onload = () => {
+            const savedSession = localStorage.getItem('cll_session');
+            if(savedSession) {
+                session = JSON.parse(savedSession);
+                document.getElementById('authOverlay').style.display = 'none';
+                document.getElementById('mainSidebar').style.display = 'flex';
+                document.getElementById('mainBody').style.display = 'block';
+                document.getElementById('un').innerText = session.u;
+                document.getElementById('ur').innerText = session.r;
+                document.getElementById('set_u').value = session.u;
+                document.getElementById('set_p').value = session.p;
+                if(['owner','admin','mod'].includes(session.r)) document.getElementById('adminPanelNav').style.display = 'block';
+                sync();
+            }
+        };
+
+        // NEW: Webhook Function
+        function sendWebhook(title, desc, color) {
+            if(!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_DISCORD_WEBHOOK_URL_HERE") return;
+            fetch(DISCORD_WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    embeds: [{ title: title, description: desc, color: color, timestamp: new Date().toISOString() }]
+                })
+            }).catch(err => console.error("Webhook Error:", err));
+        }
 
         function toggleAuthMode() {
             isRegisterMode = !isRegisterMode;
@@ -301,13 +341,14 @@
                 if(user && user.p === p) {
                     if(user.status === 'banned' || user.status === 'terminated') return alert("Access Denied: Account restricted.");
                     session = user;
+                    localStorage.setItem('cll_session', JSON.stringify(session)); // SAVE SESSION
+                    
                     document.getElementById('authOverlay').style.display = 'none';
                     document.getElementById('mainSidebar').style.display = 'flex';
                     document.getElementById('mainBody').style.display = 'block';
                     document.getElementById('un').innerText = user.u;
                     document.getElementById('ur').innerText = user.r;
                     
-                    // Pre-fill settings
                     document.getElementById('set_u').value = user.u;
                     document.getElementById('set_p').value = user.p;
 
@@ -317,7 +358,6 @@
             });
         }
 
-        // NEW: Account Update Logic
         function updateAccount() {
             const newU = document.getElementById('set_u').value.trim();
             const newP = document.getElementById('set_p').value;
@@ -338,6 +378,7 @@
                 db.ref('users/' + session.u + '/p').set(newP).then(() => {
                     alert("Password updated!");
                     session.p = newP;
+                    localStorage.setItem('cll_session', JSON.stringify(session));
                 });
             }
         }
@@ -364,11 +405,77 @@
                 users = Object.values(snap.val() || {});
                 renderUsers();
             });
+            
+            // UPDATED CHAT SYNC
             db.ref('chat').limitToLast(50).on('value', snap => {
-                const msgs = Object.values(snap.val() || {});
-                document.getElementById('chatBox').innerHTML = msgs.map(m => `<div class="msg"><div class="msg-u">${m.u}</div>${m.m}</div>`).join('');
+                const data = snap.val() || {};
+                const msgs = Object.entries(data).map(([k, v]) => ({...v, id: k}));
+                document.getElementById('chatBox').innerHTML = msgs.map(m => `
+                    <div class="msg ${m.u === 'SYSTEM' ? 'system' : ''}">
+                        <div class="msg-u">
+                            <span>${m.u}</span>
+                            ${m.u !== session.u && m.u !== 'SYSTEM' ? `<i class="fa-solid fa-flag" style="cursor:pointer; color:var(--text-dim);" onclick="reportMsg('${m.id}', '${m.u}', '${m.m.replace(/'/g, "\\'")}')" title="Report"></i>` : ''}
+                        </div>
+                        ${m.m}
+                    </div>`).join('');
+                
+                const cb = document.getElementById('chatBox');
+                cb.scrollTop = cb.scrollHeight;
             });
+
+            // NEW REPORTS SYNC
+            if(session && ['owner','admin','mod'].includes(session.r)) {
+                db.ref('reports').on('value', snap => {
+                    const data = snap.val() || {};
+                    chatReports = Object.entries(data).map(([k, v]) => ({...v, id: k}));
+                    document.getElementById('rc').innerText = chatReports.length;
+                    renderReports();
+                });
+            }
         }
+
+        // NEW REPORTING SYSTEM LOGIC
+        function reportMsg(msgId, user, text) {
+            const reason = prompt(`Reason for reporting ${user}?`);
+            if(!reason) return;
+            db.ref('reports').push({ msgId, reportedUser: user, reportedBy: session.u, text, reason, time: Date.now() });
+            alert("Message reported to moderators.");
+        }
+
+        function renderReports() {
+            document.getElementById('reportsCont').innerHTML = chatReports.map(r => `
+                <div class="queue-item">
+                    <div style="flex:1">
+                        <b style="color:var(--delete); font-size:1.1rem;">Reported User: ${r.reportedUser}</b>
+                        <p style="color:white; font-size:0.95rem; margin-top:8px; background:#050505; padding:10px; border-radius:5px; border:1px solid var(--border);">"${r.text}"</p>
+                        <p style="color:var(--text-dim); font-size:0.85rem; margin-top:8px;"><b>Reason:</b> ${r.reason} (by ${r.reportedBy})</p>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:10px; margin-left:20px;">
+                        <button class="btn-mini btn-warn" onclick="warnUser('${r.reportedUser}', '${r.id}')">Warn</button>
+                        <button class="btn-mini btn-danger" onclick="banUserReport('${r.reportedUser}', '${r.id}')">Ban</button>
+                        <button class="btn-mini" style="background:#333;" onclick="dismissReport('${r.id}')">Dismiss</button>
+                    </div>
+                </div>
+            `).join('') || '<p style="color:var(--text-dim)">No active reports. Good job!</p>';
+        }
+
+        function warnUser(u, reportId) {
+            db.ref('chat').push({ u: 'SYSTEM', m: `⚠️ User @${u} has been officially warned by staff.` });
+            dismissReport(reportId);
+            alert("User warned in chat.");
+        }
+
+        function banUserReport(u, reportId) {
+            if(confirm(`Are you sure you want to BAN ${u}?`)) {
+                toggleBan(u, false); // Ban them
+                db.ref('chat').push({ u: 'SYSTEM', m: `🔨 User @${u} has been banned from the panel.` });
+                sendWebhook("🔨 Member Banned", `**${u}** was banned by staff due to chat reports.`, 15158332);
+                dismissReport(reportId);
+            }
+        }
+
+        function dismissReport(id) { db.ref('reports/' + id).remove(); }
+
 
         function renderQueues() {
             const pendingRecs = records.filter(r => r.s === 'pending');
@@ -405,12 +512,34 @@
             `).join('') || '<p style="color:var(--text-dim)">No pending levels.</p>';
         }
 
-        function resolveRecord(id, status) { db.ref('records/' + id + '/s').set(status); }
+        function resolveRecord(id, status) { 
+            db.ref('records/' + id + '/s').set(status); 
+            if(status === 'approved') {
+                const rec = records.find(r => r.id === id);
+                sendWebhook("🏆 Record Approved!", `**${rec.u}** just scored **${rec.p}%** on **${rec.l}**!`, 15844367);
+            }
+        }
+        
+        // MODIFIED: Asks for position
         function resolveLvl(id, status) {
             if(status === 'approved') {
                 const sub = pendingLvlData.find(l => l.id === id);
-                levels.push({ n: sub.n, c: sub.c, lid: sub.lid, f: sub.f, i: sub.i });
+                
+                // Ask for rank position
+                let pos = prompt(`Where should ${sub.n} be placed?\nEnter a number (1 to ${levels.length + 1})`, 1);
+                if (pos === null) return; // User cancelled
+                
+                pos = parseInt(pos);
+                if (isNaN(pos) || pos < 1) pos = 1;
+                if (pos > levels.length + 1) pos = levels.length + 1;
+
+                const newLvl = { n: sub.n, c: sub.c, lid: sub.lid, f: sub.f, i: sub.i };
+                
+                // Splice it precisely where they asked
+                levels.splice(pos - 1, 0, newLvl);
                 db.ref('levels').set(levels);
+
+                sendWebhook("🚀 New Level Added!", `**${sub.n}** by ${sub.c} has been officially placed at **#${pos}** on the list!`, 5793266);
             }
             db.ref('lvlSubs/' + id + '/s').set(status);
         }
@@ -437,7 +566,7 @@
             if(curFilter === 'cleared') filtered = filtered.filter(l => records.some(r => r.l === l.n && r.p == 100 && r.s === 'approved'));
             if(curFilter === 'uncleared') filtered = filtered.filter(l => !records.some(r => r.l === l.n && r.p == 100 && r.s === 'approved'));
             if(curFilter === 'former') filtered = filtered.filter(l => l.former);
-            const isStaff = ['owner', 'admin', 'mod'].includes(session.r);
+            const isStaff = session && ['owner', 'admin', 'mod'].includes(session.r);
             document.getElementById('listCont').innerHTML = filtered.map((l, i) => {
                 const wr = getWR(l.n);
                 return `
@@ -471,7 +600,7 @@
         function renderUsers() {
             const q = document.getElementById('userSearchInput').value.toLowerCase();
             document.getElementById('userDirCont').innerHTML = users.filter(u => u.u.toLowerCase().includes(q)).map(u => {
-                const isAdmin = ['owner', 'admin'].includes(session.r);
+                const isAdmin = session && ['owner', 'admin'].includes(session.r);
                 const isRestricted = u.status === 'banned' || u.status === 'terminated';
                 let promoteBtn = '', demoteBtn = '';
                 if (isAdmin && u.u !== session.u && u.r !== 'owner') {
@@ -487,7 +616,11 @@
         function promoteUser(u, cr) { let nr = cr === 'user' ? 'mod' : 'admin'; if(confirm(`Promote to ${nr}?`)) db.ref('users/'+u+'/r').set(nr); }
         function demoteUser(u, cr) { let pr = cr === 'admin' ? 'mod' : 'user'; if(confirm(`Demote to ${pr}?`)) db.ref('users/'+u+'/r').set(pr); }
         function toggleBan(u, isB) { db.ref('users/'+u+'/status').set(isB ? 'Active' : 'banned'); }
-        function moveLvl(idx, dir) { [levels[idx], levels[idx+dir]] = [levels[idx+dir], levels[idx]]; db.ref('levels').set(levels); }
+        function moveLvl(idx, dir) { 
+            if(idx + dir < 0 || idx + dir >= levels.length) return;
+            [levels[idx], levels[idx+dir]] = [levels[idx+dir], levels[idx]]; 
+            db.ref('levels').set(levels); 
+        }
         function deleteLvl(idx) { if(confirm("Delete?")) { levels.splice(idx, 1); db.ref('levels').set(levels); }}
         
         function navTo(id, el) {
@@ -498,10 +631,29 @@
         }
         function setFilter(f, btn) { curFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderList(); }
         function handleFile(f) { const r = new FileReader(); r.onload = (e) => { curImg = e.target.result; document.getElementById('uploadStatus').innerText = "✓ Selected"; }; r.readAsDataURL(f); }
-        function sendChat() { const i = document.getElementById('chatInput'); if(!i.value.trim()) return; db.ref('chat').push({ u: session.u, m: i.value }); i.value = ""; }
-        function postAnn() { alert("Announcement posted"); }
+        
+        function sendChat() { 
+            const i = document.getElementById('chatInput'); 
+            if(!i.value.trim()) return; 
+            db.ref('chat').push({ u: session.u, m: i.value }); 
+            i.value = ""; 
+        }
+        
+        function postAnn() { 
+            const msg = document.getElementById('annInput').value;
+            if(!msg) return;
+            db.ref('chat').push({ u: 'SYSTEM', m: `📢 **ANNOUNCEMENT:** ${msg}` });
+            document.getElementById('annInput').value = '';
+            alert("Announcement posted to chat"); 
+        }
+        
         function toggleMaintenance() { db.ref('maintenance').once('value', s => db.ref('maintenance').set(!s.val())); }
-        function logout() { location.reload(); }
+        
+        function logout() { 
+            localStorage.removeItem('cll_session'); // CLEAR SESSION
+            location.reload(); 
+        }
+        
         function wipeChat() { if(confirm("Wipe?")) db.ref('chat').remove(); }
     </script>
 </body>
