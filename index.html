@@ -80,9 +80,21 @@
         footer { position: fixed; bottom: 0; left: 280px; right: 0; padding: 15px; background: rgba(3,3,3,0.95); border-top: 1px solid var(--border); display: flex; justify-content: center; z-index: 90; backdrop-filter: blur(5px); }
         .discord-btn { background: #5865F2; color: white; text-decoration: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
         .discord-btn:hover { background: #4752c4; }
+
+        /* NEW BAN STYLES */
+        #banBar { display: none; background: var(--delete); color: white; text-align: center; padding: 10px; font-weight: bold; position: fixed; top: 0; left: 280px; right: 0; z-index: 2000; }
+        #termOverlay { display: none; position: fixed; inset: 0; background: #000; color: white; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .admin-action-btn { padding: 4px 8px; font-size: 10px; margin: 2px; }
     </style>
 </head>
 <body>
+
+    <div id="banBar">YOU ARE CURRENTLY BANNED FROM SUBMITTING CONTENT</div>
+    
+    <div id="termOverlay">
+        <h1 style="font-size: 3rem; color: var(--delete);">ACCOUNT TERMINATED</h1>
+        <p style="margin-top: 20px;">Your account has been permanently disabled.</p>
+    </div>
 
     <div id="authOverlay" class="modal" style="display:flex;">
         <div class="modal-card">
@@ -91,6 +103,20 @@
             <input type="password" id="ap" placeholder="Password">
             <button style="width:100%" onclick="login()">Sign In</button>
             <p onclick="signup()" style="color:var(--accent); cursor:pointer; font-size:0.8rem; margin-top:20px;">Register New User</p>
+        </div>
+    </div>
+
+    <div id="banModal" class="modal">
+        <div class="modal-card">
+            <h3>Ban User</h3>
+            <p id="banUserTarget" style="margin: 10px 0; color: var(--text-dim);"></p>
+            <input type="number" id="banHours" placeholder="Ban Duration (Hours)" value="24">
+            <select id="banType">
+                <option value="regular">Regular Ban (Red Bar)</option>
+                <option value="shadow">Shadow Ban (Hidden)</option>
+            </select>
+            <button style="width:100%; background: var(--delete);" onclick="confirmBan()">Apply Ban</button>
+            <button style="width:100%; background:#222; margin-top:10px;" onclick="closeModals()">Cancel</button>
         </div>
     </div>
 
@@ -215,7 +241,7 @@
         const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502757681730031626/qi01GHmcXFCBLyquwc36V1aFHfwq58wamflzlaflx0FClvV9F91RtUT78cFmRjCddl8w";
 
         let session = JSON.parse(sessionStorage.getItem('il_s'));
-        let levels = [], records = [], lvlSubs = [], users = [];
+        let levels = [], records = [], lvlSubs = [], users = [], activeBanUser = null;
         let currentImgBase64 = "";
         let lastMsgTime = 0;
 
@@ -226,6 +252,30 @@
             const step = (maxPoints - minPoints) / (levels.length - 1);
             const val = maxPoints - ((rank - 1) * step);
             return Math.max(minPoints, Math.round(val));
+        }
+
+        function checkUserStatus() {
+            if(!session) return;
+            db.ref('users/' + session.u).on('value', snap => {
+                const u = snap.val();
+                if(!u) return;
+                
+                if(u.terminated) {
+                    document.getElementById('termOverlay').style.display = 'flex';
+                    sessionStorage.clear();
+                    return;
+                }
+
+                const now = Date.now();
+                const isBanned = u.status === 'banned' && u.banUntil > now;
+                session.isBanned = isBanned;
+
+                if(isBanned && u.banType === 'regular') {
+                    document.getElementById('banBar').style.display = 'block';
+                } else {
+                    document.getElementById('banBar').style.display = 'none';
+                }
+            });
         }
 
         function sync() {
@@ -284,7 +334,6 @@
             document.getElementById('pendingCont').innerHTML = records.filter(x => x.s === 'pending').map(r => `<div style="background:var(--card); padding:15px; margin-top:10px; border-radius:8px;">${r.u}: ${r.p}% on ${r.l} <button onclick="actRec(${r.id},'approved')">Approve</button></div>`).join('');
         }
 
-        // IMPROVED LEADERBOARD LOGIC
         function renderLeaderboard() {
             const playerBests = {};
             records.filter(r => r.s === 'approved').forEach(r => {
@@ -317,9 +366,32 @@
             const q = document.getElementById('userSearch').value.toLowerCase();
             document.getElementById('userDirCont').innerHTML = users.filter(u => u.u.toLowerCase().includes(q)).map(u => `
                 <tr><td>${u.u}</td><td><span class="role-badge r-${u.r}">${u.r}</span></td>
-                <td>${session.r==='owner' && u.r==='user' ? `<button onclick="db.ref('users/${u.u}/r').set('admin')">Promote</button>` : '—'}</td></tr>
+                <td>
+                    ${session.r === 'owner' || session.r === 'admin' ? `
+                        ${u.u !== session.u && u.r !== 'owner' ? `
+                            <button class="admin-action-btn" style="background:#f39c12" onclick="openBan('${u.u}')">Ban</button>
+                            <button class="admin-action-btn" style="background:var(--delete)" onclick="terminate('${u.u}')">Term</button>
+                            ${session.r === 'owner' ? `
+                                <button class="admin-action-btn" style="background:#5533ff" onclick="ipBan('${u.u}')">IP-Ban</button>
+                                ${u.r === 'admin' ? `<button class="admin-action-btn" style="background:#444" onclick="demote('${u.u}')">Depromote</button>` : `<button class="admin-action-btn" onclick="db.ref('users/${u.u}/r').set('admin')">Promote</button>`}
+                            ` : ''}
+                        ` : '—'}
+                    ` : '—'}
+                </td></tr>
             `).join('');
         }
+
+        // ADMIN FUNCTIONS
+        function openBan(u) { activeBanUser = u; document.getElementById('banUserTarget').innerText = "Target: " + u; document.getElementById('banModal').style.display='flex'; }
+        function confirmBan() {
+            const h = document.getElementById('banHours').value;
+            const t = document.getElementById('banType').value;
+            db.ref('users/' + activeBanUser).update({ status: 'banned', banUntil: Date.now() + (h*3600000), banType: t });
+            closeModals();
+        }
+        function terminate(u) { if(confirm("Terminate account "+u+"?")) db.ref('users/'+u).update({terminated: true}); }
+        function ipBan(u) { if(confirm("IP-Ban "+u+"?")) db.ref('users/'+u).update({terminated: true, ipBanned: true}); }
+        function demote(u) { if(confirm("Demote "+u+"?")) db.ref('users/'+u+'/r').set('user'); }
 
         function login() {
             const u = document.getElementById('au').value.trim();
@@ -377,6 +449,7 @@
         }
 
         function sendLvlSub() {
+            if(session.isBanned) return alert("You are banned from submitting levels.");
             const id = Date.now();
             db.ref('lvlSubs/' + id).set({
                 id, sender: session.u, s: 'pending', lid: document.getElementById('sl_id').value,
@@ -388,15 +461,11 @@
         }
 
         function sendSub() {
+            if(session.isBanned) return alert("You are banned from submitting records.");
             const id = Date.now();
             db.ref('records/' + id).set({ id, u: session.u, l: document.getElementById('sl').value, v: document.getElementById('sv').value, p: document.getElementById('sp').value, s: 'pending' });
             alert("Record submitted!");
             setView('list');
-        }
-
-        async function triggerWebhook(subData) {
-            const payload = { embeds: [{ title: "🚨 New Level Added! 🚨", color: 5793266, thumbnail: { url: subData.i }, fields: [{ name: "Level", value: subData.n, inline: true }, { name: "Creator", value: subData.c, inline: true }, { name: "ID", value: subData.lid, inline: false }] }] };
-            try { await fetch(DISCORD_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch (err) {}
         }
 
         function actRec(id, s) { db.ref('records/' + id + '/s').set(s); }
@@ -417,7 +486,6 @@
             levels.splice(rank - 1, 0, { n: sub.n, c: sub.c, f: sub.f, i: sub.i, lid: sub.lid });
             db.ref('levels').set(levels);
             db.ref('lvlSubs/' + activePendingId + '/s').set('accepted');
-            triggerWebhook(sub);
             closeModals();
         }
 
@@ -435,6 +503,7 @@
             document.getElementById('mainBody').style.display = 'block';
             document.getElementById('un').innerText = session.u;
             if(['owner','admin'].includes(session.r)) document.getElementById('adminPanel').style.display='block';
+            checkUserStatus();
             initOnlineStatus();
             sync();
         }
