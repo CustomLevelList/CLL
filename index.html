@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Levels List</title>
+    
+    <title>Custom Levels List | Official Rankings & Leaderboard</title>
+    <meta name="description" content="The official Custom Levels List. Track the hardest levels, view the player leaderboard, submit your records, and join the community chat.">
+    <meta name="keywords" content="Custom Levels List, Geometry Dash, Level Rankings, GD Leaderboard, Custom Levels, Demon List">
+    <meta name="author" content="Nova">
+
+    <link rel="icon" type="image/jpeg" href="CLL.jpg">
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -19,27 +25,22 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; overflow-x: hidden; }
 
-        /* Navigation */
         .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
         .nav-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
         .nav-item { padding: 12px 15px; cursor: pointer; border-radius: 8px; color: var(--text-dim); transition: 0.2s; margin-bottom: 4px; font-weight: 500; font-size: 0.9rem; }
         .nav-item:hover, .nav-item.active { background: #1a1a1a; color: white; }
         .nav-item.active { border-left: 4px solid var(--accent); background: linear-gradient(90deg, #1a1a1a, transparent); }
 
-        /* Main Content */
-        /* Added padding-bottom so the footer doesn't hide content */
         main { flex-grow: 1; margin-left: 280px; padding: 50px; padding-bottom: 100px; max-width: 1300px; }
         .view { display: none; animation: fadeIn 0.4s ease; }
         .view.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Level Cards */
         .level-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; display: flex; height: 160px; overflow: hidden; position: relative; }
         .level-img { width: 280px; object-fit: cover; border-right: 1px solid var(--border); background: #000; }
         .level-main { flex: 1; padding: 20px 25px; display: flex; flex-direction: column; justify-content: center; }
         .rank-num { font-size: 1.8rem; font-weight: 900; color: var(--accent); margin-right: 15px; font-style: italic; }
         
-        /* Point Labels */
         .point-tag { background: rgba(88, 101, 242, 0.1); color: var(--accent); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid rgba(88, 101, 242, 0.3); margin-left: 10px; }
         .wr-badge { background: rgba(241, 196, 15, 0.1); color: var(--gold); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; border: 1px solid rgba(241, 196, 15, 0.3); display: inline-block; margin-top: 8px; align-self: flex-start; }
         .level-id-tag { font-family: monospace; color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
@@ -47,19 +48,16 @@
         .admin-tools { display: flex; flex-direction: column; gap: 5px; background: #000; padding: 10px; border-left: 1px solid var(--border); }
         .admin-tools button { padding: 5px; background: #222; border: none; color: white; cursor: pointer; font-size: 10px; }
 
-        /* Tables */
         table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; margin-top: 20px; border: 1px solid var(--border); }
         th { text-align: left; padding: 15px 20px; background: #1a1a1a; color: var(--text-dim); font-size: 0.8rem; }
         td { padding: 15px 20px; border-bottom: 1px solid var(--border); }
 
-        /* UI Elements */
         input, select { width: 100%; padding: 14px; background: #0a0a0a; border: 1px solid var(--border); color: white; border-radius: 8px; margin-top: 10px; outline: none; }
         button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; background: var(--accent); color: white; margin-top: 15px; }
 
         .upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 30px; text-align: center; margin-top: 10px; cursor: pointer; background: #050505; }
         .upload-preview { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; margin-top: 10px; display: none; }
 
-        /* Overlays */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; justify-content: center; align-items: center; }
         .modal-card { background: var(--card); padding: 30px; border-radius: 15px; border: 1px solid var(--border); width: 400px; text-align: center; }
         
@@ -67,7 +65,6 @@
         .r-owner { background: rgba(255,71,71,0.1); color: var(--owner); border: 1px solid var(--owner); }
         .r-admin { background: rgba(88,101,242,0.1); color: var(--accent); border: 1px solid var(--accent); }
 
-        /* --- NEW STYLES: Chat, Mods, and Footer --- */
         #chatBox { height: 400px; background: #050505; border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
         .msg { padding: 10px 15px; background: #111; border-radius: 8px; border-left: 3px solid var(--accent); max-width: 80%; }
         .msg-meta { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px; font-weight:bold; }
@@ -84,7 +81,7 @@
 
     <div id="authOverlay" class="modal" style="display:flex;">
         <div class="modal-card">
-            <h2 style="margin-bottom: 10px;">Custom Levels List Panel</h2>
+            <h2 style="margin-bottom: 10px;">Custom Levels List</h2>
             <input type="text" id="au" placeholder="Username">
             <input type="password" id="ap" placeholder="Password">
             <button style="width:100%" onclick="login()">Sign In</button>
@@ -102,7 +99,7 @@
     </div>
 
     <div class="sidebar" id="mainSidebar" style="display:none;">
-        <h1 style="font-size: 1.4rem; letter-spacing: -1px; margin-bottom: 20px;">Custom Levels List <span style="color:var(--accent)">PANEL</span></h1>
+        <h1 style="font-size: 1.4rem; letter-spacing: -1px; margin-bottom: 20px;">CLL <span style="color:var(--accent)">PANEL</span></h1>
         
         <div class="nav-label">The List</div>
         <div class="nav-item active" id="n-list" onclick="setView('list')">Main Rankings</div>
@@ -166,10 +163,10 @@
             <div style="max-width:500px; margin-top:20px; background:var(--card); padding:25px; border-radius:10px; border:1px solid var(--border);">
                 <input type="text" id="sl_n" placeholder="Level Name">
                 <input type="text" id="sl_c" placeholder="Creator">
-                <input type="text" id="sl_id" placeholder="In-game ID (Must show on level)">
+                <input type="text" id="sl_id" placeholder="In-game ID">
                 <input type="text" id="sl_f" placeholder="Required FPS">
                 <div class="upload-area" onclick="document.getElementById('lvlFileInput').click()">
-                    <span id="uploadStatus">Upload Level Banner (Image)</span>
+                    <span id="uploadStatus">Upload Level Banner</span>
                     <img id="prevImg" class="upload-preview">
                     <input type="file" id="lvlFileInput" hidden accept="image/*" onchange="handleFile(this.files[0])">
                 </div>
@@ -193,13 +190,11 @@
 
     <footer>
         <a href="https://discord.gg/CnsfxA8DZz" target="_blank" class="discord-btn">
-            <svg width="24" height="24" viewBox="0 0 127.14 96.36" fill="white"><path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z"/></svg>
             Join the Official Discord
         </a>
     </footer>
 
     <script>
-        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyByYGrLxkBs_EiSG2w0ijpc1hXwb7IxJs8",
             authDomain: "ill-panel.firebaseapp.com",
@@ -212,35 +207,28 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        // NEW: Discord Webhook URL
         const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1502757681730031626/qi01GHmcXFCBLyquwc36V1aFHfwq58wamflzlaflx0FClvV9F91RtUT78cFmRjCddl8w";
 
         let session = JSON.parse(sessionStorage.getItem('il_s'));
         let levels = [], records = [], lvlSubs = [], users = [];
         let currentImgBase64 = "";
-        
-        // NEW: Chat variables
         let lastMsgTime = 0;
 
-        // --- POINT CALCULATION (1000 SCALE) ---
         function getLevelPoints(rank) {
             const maxPoints = 1000;
             const minPoints = 10;
             if (levels.length <= 1) return maxPoints;
-            
             const step = (maxPoints - minPoints) / (levels.length - 1);
             const val = maxPoints - ((rank - 1) * step);
             return Math.max(minPoints, Math.round(val));
         }
 
-        // --- DATA SYNC ---
         function sync() {
             db.ref('levels').on('value', snap => { levels = snap.val() || []; render(); renderLeaderboard(); });
             db.ref('records').on('value', snap => { records = Object.values(snap.val() || {}); render(); renderLeaderboard(); });
             db.ref('lvlSubs').on('value', snap => { lvlSubs = Object.values(snap.val() || {}); render(); });
             db.ref('users').on('value', snap => { users = Object.values(snap.val() || {}); renderUsers(); });
             
-            // NEW: Listen to Chat
             db.ref('chat').limitToLast(50).on('value', snap => {
                 const msgs = Object.values(snap.val() || {});
                 document.getElementById('chatBox').innerHTML = msgs.map(m => `
@@ -252,20 +240,17 @@
                 document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
             });
 
-            // NEW: Listen to Active Moderators Status
             db.ref('status').on('value', snap => {
                 const onlineUsers = Object.values(snap.val() || {});
                 const mods = onlineUsers.filter(u => u.r === 'admin' || u.r === 'owner');
-                
                 document.getElementById('modListCont').innerHTML = mods.map(m => `
                     <div style="background:var(--card); padding:15px; border:1px solid var(--border); margin-bottom:10px; border-radius:8px;">
                         <span class="mod-online"></span> <b>${m.u}</b> - <span style="color:var(--accent); font-size:0.8rem; text-transform:uppercase;">${m.r}</span>
                     </div>
-                `).join('') || '<p style="color:var(--text-dim)">No moderators are currently online.</p>';
+                `).join('') || '<p style="color:var(--text-dim)">No moderators online.</p>';
             });
         }
 
-        // --- RENDERING ---
         function render() {
             document.getElementById('listCont').innerHTML = levels.map((l, i) => {
                 const wr = records.filter(x => x.l === l.n && x.s === 'approved').sort((a,b) => parseInt(b.p) - parseInt(a.p))[0];
@@ -290,21 +275,34 @@
             document.getElementById('pc').innerText = records.filter(x => x.s === 'pending').length;
             document.getElementById('sl').innerHTML = levels.map(l => `<option>${l.n}</option>`).join('');
             
-            document.getElementById('pendingLvlCont').innerHTML = lvlSubs.filter(x => x.s === 'pending').map(l => `<div style="background:var(--card); padding:15px; margin-top:10px; border-radius:8px;">${l.n} (ID: ${l.lid}) <button onclick="promptAccept(${l.id})">Place Level</button></div>`).join('');
+            document.getElementById('pendingLvlCont').innerHTML = lvlSubs.filter(x => x.s === 'pending').map(l => `<div style="background:var(--card); padding:15px; margin-top:10px; border-radius:8px;">${l.n} <button onclick="promptAccept(${l.id})">Place</button></div>`).join('');
             document.getElementById('pendingCont').innerHTML = records.filter(x => x.s === 'pending').map(r => `<div style="background:var(--card); padding:15px; margin-top:10px; border-radius:8px;">${r.u}: ${r.p}% on ${r.l} <button onclick="actRec(${r.id},'approved')">Approve</button></div>`).join('');
         }
 
+        // IMPROVED LEADERBOARD LOGIC
         function renderLeaderboard() {
-            const scores = {};
+            const playerBests = {};
             records.filter(r => r.s === 'approved').forEach(r => {
-                const lvlIdx = levels.findIndex(l => l.n === r.l);
-                if(lvlIdx === -1) return;
-                const base = getLevelPoints(lvlIdx + 1);
-                const earned = base * (parseFloat(r.p) / 100);
-                scores[r.u] = (scores[r.u] || 0) + earned;
+                if (!playerBests[r.u]) playerBests[r.u] = {};
+                if (!playerBests[r.u][r.l] || parseFloat(r.p) > playerBests[r.u][r.l]) {
+                    playerBests[r.u][r.l] = parseFloat(r.p);
+                }
             });
-            
-            const sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
+
+            const finalScores = {};
+            Object.keys(playerBests).forEach(user => {
+                let total = 0;
+                Object.keys(playerBests[user]).forEach(lvlName => {
+                    const idx = levels.findIndex(l => l.n === lvlName);
+                    if (idx !== -1) {
+                        const base = getLevelPoints(idx + 1);
+                        total += base * (playerBests[user][lvlName] / 100);
+                    }
+                });
+                finalScores[user] = total;
+            });
+
+            const sorted = Object.entries(finalScores).sort((a,b) => b[1] - a[1]);
             document.getElementById('leaderCont').innerHTML = sorted.map((s, i) => `
                 <tr><td>#${i+1}</td><td><b>${s[0]}</b></td><td style="color:var(--gold); font-weight:bold;">${s[1].toLocaleString(undefined, {minimumFractionDigits: 2})}</td></tr>
             `).join('');
@@ -318,7 +316,6 @@
             `).join('');
         }
 
-        // --- AUTH & ONLINE PRESENCE ---
         function login() {
             const u = document.getElementById('au').value.trim();
             const p = document.getElementById('ap').value;
@@ -328,7 +325,7 @@
                     session = user;
                     sessionStorage.setItem('il_s', JSON.stringify(user));
                     init();
-                } else alert("Invalid username or password.");
+                } else alert("Invalid login.");
             });
         }
         
@@ -337,12 +334,11 @@
             const p = document.getElementById('ap').value;
             if(!u || !p) return alert("Fill all fields");
             db.ref('users/' + u).set({ u, p, r: u === "Nova" ? "owner" : "user" });
-            alert("Registered! You can now log in.");
+            alert("Registered! Log in now.");
         }
 
         function logout() { sessionStorage.removeItem('il_s'); location.reload(); }
 
-        // NEW: Handles online status for Active Moderators tab
         function initOnlineStatus() {
             const myStatusRef = db.ref('status/' + session.u);
             db.ref('.info/connected').on('value', function(snap) {
@@ -352,25 +348,18 @@
             });
         }
 
-        // --- NEW: CHAT LOGIC ---
         function sendChat() {
             const input = document.getElementById('chatInput');
             const msg = input.value.trim();
             if(!msg) return;
-
             const now = Date.now();
-            if(now - lastMsgTime < 3000) {
-                document.getElementById('spamWarn').style.display = 'block';
-                return;
-            }
-
+            if(now - lastMsgTime < 3000) { document.getElementById('spamWarn').style.display = 'block'; return; }
             db.ref('chat').push({ u: session.u, r: session.r, m: msg, t: now });
             input.value = '';
             document.getElementById('spamWarn').style.display = 'none';
             lastMsgTime = now;
         }
 
-        // --- FILE MGMT ---
         function handleFile(file) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -382,7 +371,6 @@
             reader.readAsDataURL(file);
         }
 
-        // --- SUBMISSIONS ---
         function sendLvlSub() {
             const id = Date.now();
             db.ref('lvlSubs/' + id).set({
@@ -401,64 +389,33 @@
             setView('list');
         }
 
-        // --- NEW: DISCORD WEBHOOK ---
         async function triggerWebhook(subData) {
-            const payload = {
-                embeds: [{
-                    title: "🚨 New Level Added to the List! 🚨",
-                    color: 5793266, // Blurple
-                    thumbnail: { url: subData.i },
-                    fields: [
-                        { name: "Level Name", value: subData.n, inline: true },
-                        { name: "Creator", value: subData.c, inline: true },
-                        { name: "Level ID", value: subData.lid, inline: false },
-                        { name: "Accepted By", value: session.u, inline: false }
-                    ]
-                }]
-            };
-
-            try {
-                await fetch(DISCORD_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-            } catch (err) {
-                console.error("Webhook failed to send", err);
-            }
+            const payload = { embeds: [{ title: "🚨 New Level Added! 🚨", color: 5793266, thumbnail: { url: subData.i }, fields: [{ name: "Level", value: subData.n, inline: true }, { name: "Creator", value: subData.c, inline: true }, { name: "ID", value: subData.lid, inline: false }] }] };
+            try { await fetch(DISCORD_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch (err) {}
         }
 
-        // --- ADMIN ---
         function actRec(id, s) { db.ref('records/' + id + '/s').set(s); }
-        
         function move(i, d) {
             let t = i + d; if(t < 0 || t >= levels.length) return;
             [levels[i], levels[t]] = [levels[t], levels[i]];
             db.ref('levels').set(levels);
         }
-        
-        function del(i) { if(confirm("Delete level forever?")) { levels.splice(i,1); db.ref('levels').set(levels); } }
+        function del(i) { if(confirm("Delete level?")) { levels.splice(i,1); db.ref('levels').set(levels); } }
 
         let activePendingId = null;
         function promptAccept(id) { activePendingId = id; document.getElementById('placementModal').style.display = 'flex'; }
-        
         function closeModals() { document.querySelectorAll('.modal').forEach(m => { if(m.id !== 'authOverlay') m.style.display='none'; }); }
         
         function confirmAcceptLvl() {
             const rank = parseInt(document.getElementById('acceptRank').value);
             const sub = lvlSubs.find(x => x.id == activePendingId);
-            
             levels.splice(rank - 1, 0, { n: sub.n, c: sub.c, f: sub.f, i: sub.i, lid: sub.lid });
             db.ref('levels').set(levels);
             db.ref('lvlSubs/' + activePendingId + '/s').set('accepted');
-            
-            // Trigger Discord Webhook on accept
             triggerWebhook(sub);
-
             closeModals();
         }
 
-        // --- UI ROUTING ---
         function setView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
@@ -473,9 +430,8 @@
             document.getElementById('mainBody').style.display = 'block';
             document.getElementById('un').innerText = session.u;
             if(['owner','admin'].includes(session.r)) document.getElementById('adminPanel').style.display='block';
-            
-            initOnlineStatus(); // Start tracking mod presence
-            sync();             // Start fetching data
+            initOnlineStatus();
+            sync();
         }
 
         if(session) init();
