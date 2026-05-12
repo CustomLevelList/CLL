@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLL | Custom Level List</title>
+    <title>CLL | Custom Levels List</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -15,23 +15,66 @@
             --accent: #5865f2; --border: #1f1f1f; --text: #eee;
             --text-dim: #777; --gold: #f1c40f; --delete: #e74c3c;
             --success: #43b581; --owner: #ff4747; --wr: #f39c12;
+            --bottom-height: 60px; /* Added for bottom bar */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; overflow-x: hidden; }
+        body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; overflow-x: hidden; position: relative; }
+
+        /* --- Falling Stars Background --- */
+        #star-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: starFall linear infinite;
+        }
+
+        @keyframes starFall {
+            0% { transform: translateY(-10vh) translateX(0); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(110vh) translateX(50px); opacity: 0; }
+        }
 
         /* Sidebar Navigation */
         .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; }
         .nav-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; font-weight: 800; }
-        .nav-item { padding: 12px 15px; cursor: pointer; border-radius: 8px; color: var(--text-dim); transition: 0.2s; margin-bottom: 4px; font-size: 0.9rem; display: flex; align-items: center; gap: 12px; }
+        .nav-item { padding: 12px 15px; cursor: pointer; border-radius: 8px; color: var(--text-dim); transition: 0.2s; margin-bottom: 4px; font-size: 0.9rem; display: flex; align-items: center; gap: 12px; text-decoration: none; }
         .nav-item i { width: 20px; text-align: center; font-size: 1rem; }
         .nav-item:hover, .nav-item.active { background: #1a1a1a; color: white; }
         .nav-item.active { border-left: 4px solid var(--accent); background: linear-gradient(90deg, #1a1a1a, transparent); }
 
-        main { flex-grow: 1; margin-left: 280px; padding: 50px; max-width: 1400px; width: 100%; }
+        /* Main Content Adjustments for Bottom Bar */
+        main { flex-grow: 1; margin-left: 280px; padding: 50px; padding-bottom: calc(var(--bottom-height) + 50px); max-width: 1400px; width: 100%; }
         .view { display: none; }
         .view.active { display: block; animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* NEW: Bottom Bar Styling */
+        .bottom-bar { 
+            position: fixed; bottom: 0; left: 280px; right: 0; 
+            height: var(--bottom-height); background: var(--sidebar); 
+            border-top: 1px solid var(--border); display: flex; 
+            align-items: center; justify-content: center; padding: 0 50px; z-index: 99;
+        }
+        .discord-btn-bottom { 
+            background: #5865f2; color: white; text-decoration: none; 
+            padding: 8px 25px; border-radius: 20px; font-weight: 800; 
+            font-size: 0.85rem; display: flex; align-items: center; gap: 10px; transition: 0.3s;
+        }
+        .discord-btn-bottom:hover { background: #4752c4; transform: translateY(-2px); }
 
         /* Level Cards & Management UI */
         .filter-bar { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
@@ -44,8 +87,9 @@
         
         .point-tag { background: rgba(88, 101, 242, 0.1); color: var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; border: 1px solid rgba(88, 101, 242, 0.2); margin-left: 10px; }
         .wr-badge { background: rgba(243, 156, 18, 0.15); color: var(--wr); padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 800; border: 1px solid rgba(243, 156, 18, 0.3); margin-top: 10px; align-self: flex-start; }
+        .former-tag { background: rgba(255, 71, 71, 0.1); color: var(--owner); padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; border: 1px solid rgba(255, 71, 71, 0.2); text-transform: uppercase; margin-top: 5px; align-self: flex-start; }
 
-        .mgmt-controls { display: flex; flex-direction: column; justify-content: center; padding: 15px; border-left: 1px solid var(--border); background: rgba(255,255,255,0.02); gap: 8px; }
+        .mgmt-controls { display: flex; flex-direction: column; justify-content: center; padding: 10px; border-left: 1px solid var(--border); background: rgba(255,255,255,0.02); gap: 4px; }
 
         /* Boxed Chat UI */
         #chatBox { 
@@ -82,6 +126,7 @@
 </head>
 <body>
 
+    <div id="star-container"></div>
     <div id="globalAnnounce"></div>
 
     <div class="sidebar" id="mainSidebar" style="display:none;">
@@ -105,6 +150,7 @@
         <div id="adminPanelNav" style="display:none">
             <div class="nav-label">Administration</div>
             <div class="nav-item" onclick="navTo('adminp', this)" style="color:var(--owner)"><i class="fa-solid fa-shield-halved"></i> Admin Controls</div>
+            <div class="nav-item" onclick="navTo('managerec', this)"><i class="fa-solid fa-pen-to-square"></i> Manage Records</div>
             <div class="nav-item" onclick="navTo('pendlvl', this)"><i class="fa-solid fa-layer-group"></i> Level Queue (<span id="plc">0</span>)</div>
             <div class="nav-item" onclick="navTo('pendrec', this)"><i class="fa-solid fa-hourglass-half"></i> Record Queue (<span id="pc">0</span>)</div>
             <div class="nav-item" onclick="navTo('reports', this)"><i class="fa-solid fa-flag"></i> Reports (<span id="rc">0</span>)</div>
@@ -113,8 +159,13 @@
         <div style="margin-top:auto; border-top:1px solid var(--border); padding-top:20px;">
             <p id="un" style="font-weight:900; color:white;"></p>
             <p id="ur" style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase;"></p>
-            <p onclick="logout()" style="color:var(--delete); cursor:pointer; font-size:0.8rem; margin-top:8px; font-weight:bold;"><i class="fa-solid fa-right-from-bracket"></i> LOGOUT</p>
         </div>
+    </div>
+
+    <div id="mainBottomBar" class="bottom-bar" style="display:none;">
+        <a href="https://discord.gg/MC9CsrnCpX" target="_blank" class="discord-btn-bottom">
+            <i class="fa-brands fa-discord"></i> JOIN OUR DISCORD SERVER
+        </a>
     </div>
 
     <main id="mainBody" style="display:none;">
@@ -125,9 +176,15 @@
                 <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
                 <button class="filter-btn" onclick="setFilter('cleared', this)">Cleared</button>
                 <button class="filter-btn" onclick="setFilter('uncleared', this)">Uncleared</button>
-                <button class="filter-btn" onclick="setFilter('former', this)">Former top 1 of the CLL</button>
+                <button class="filter-btn" onclick="setFilter('former', this)">Former Top 1</button>
             </div>
             <div id="listCont"></div>
+        </div>
+
+        <div id="v-managerec" class="view">
+            <h2>Manage Approved Records</h2>
+            <p style="color:var(--text-dim); margin-bottom:20px;">Modify or delete existing world records and completions.</p>
+            <div id="manageRecCont"></div>
         </div>
 
         <div id="v-leader" class="view">
@@ -194,6 +251,11 @@
                 </div>
                 <button onclick="updateAccount()" style="width:100%">Update Credentials</button>
                 <p style="font-size:0.7rem; color:var(--text-dim); margin-top:15px; text-align:center;">Note: Changing your username will log you out for security.</p>
+                
+                <hr style="border:0; border-top:1px solid var(--border); margin:30px 0;">
+                
+                <p style="font-size:0.8rem; color:var(--text-dim); margin-bottom:10px;">Session Management</p>
+                <button class="btn-danger" onclick="logout()" style="width:100%"><i class="fa-solid fa-right-from-bracket"></i> LOGOUT FROM SESSION</button>
             </div>
         </div>
 
@@ -237,9 +299,7 @@
             <h2 id="authTitle" style="margin-bottom:30px;">CLL LOGIN</h2>
             <input type="text" id="au" placeholder="Username">
             <input type="password" id="ap" placeholder="Password">
-            
             <button id="authBtn" style="width:100%; margin-top:30px;" onclick="login()">Enter</button>
-            
             <p id="authToggle" style="margin-top:20px; font-size:0.85rem; color:var(--text-dim); cursor:pointer;" onclick="toggleAuthMode()">
                 Don't have an account? <span style="color:var(--accent); font-weight:bold;">Register here</span>
             </p>
@@ -247,8 +307,7 @@
     </div>
 
     <script>
-        // REPLACE THIS WITH YOUR DISCORD WEBHOOK URL!
-        const DISCORD_WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL_HERE";
+        const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1502757681730031626/qi01GHmcXFCBLyquwc36V1aFHfwq58wamflzlaflx0FClvV9F91RtUT78cFmRjCddl8w";
 
         const firebaseConfig = {
             apiKey: "AIzaSyByYGrLxkBs_EiSG2w0ijpc1hXwb7IxJs8",
@@ -266,14 +325,31 @@
         let isRegisterMode = false;
         let levels = [], records = [], users = [], pendingLvlData = [], chatReports = [], curFilter = 'all', curImg = "";
 
-        // NEW: Auto-Login on Load
+        function createStars() {
+            const container = document.getElementById('star-container');
+            const starCount = 50;
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3 + 1 + 'px';
+                star.style.width = size;
+                star.style.height = size;
+                star.style.left = Math.random() * 100 + 'vw';
+                star.style.animationDuration = Math.random() * 3 + 2 + 's';
+                star.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(star);
+            }
+        }
+
         window.onload = () => {
+            createStars();
             const savedSession = localStorage.getItem('cll_session');
             if(savedSession) {
                 session = JSON.parse(savedSession);
                 document.getElementById('authOverlay').style.display = 'none';
                 document.getElementById('mainSidebar').style.display = 'flex';
                 document.getElementById('mainBody').style.display = 'block';
+                document.getElementById('mainBottomBar').style.display = 'flex'; // Show bottom bar
                 document.getElementById('un').innerText = session.u;
                 document.getElementById('ur').innerText = session.r;
                 document.getElementById('set_u').value = session.u;
@@ -283,7 +359,6 @@
             }
         };
 
-        // NEW: Webhook Function
         function sendWebhook(title, desc, color) {
             if(!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_DISCORD_WEBHOOK_URL_HERE") return;
             fetch(DISCORD_WEBHOOK_URL, {
@@ -307,8 +382,10 @@
 
         function getPoints(rank) {
             const max = 1000, min = 50;
-            if (levels.length <= 1) return max;
-            return Math.max(min, Math.round(max - ((rank - 1) * ((max - min) / (levels.length - 1)))));
+            const totalLevels = levels.length;
+            if (totalLevels <= 1) return max;
+            const score = Math.max(min, Math.round(max - ((rank - 1) * ((max - min) / (totalLevels - 1)))));
+            return score;
         }
 
         function getWR(levelName) {
@@ -321,14 +398,10 @@
             const u = document.getElementById('au').value.trim();
             const p = document.getElementById('ap').value;
             if(!u || !p) return alert("Fill all fields.");
-            if(u.length < 3) return alert("Username too short.");
-
             db.ref('users/' + u).once('value', snap => {
-                if(snap.exists()) return alert("Username already taken.");
-                const newUser = { u: u, p: p, r: 'user', status: 'Active' };
-                db.ref('users/' + u).set(newUser).then(() => {
-                    alert("Account created! Please login.");
-                    toggleAuthMode();
+                if(snap.exists()) return alert("Username taken.");
+                db.ref('users/' + u).set({ u: u, p: p, r: 'user', status: 'Active' }).then(() => {
+                    alert("Account created!"); toggleAuthMode();
                 });
             });
         }
@@ -339,47 +412,27 @@
             db.ref('users/' + u).once('value', snap => {
                 const user = snap.val();
                 if(user && user.p === p) {
-                    if(user.status === 'banned' || user.status === 'terminated') return alert("Access Denied: Account restricted.");
+                    if(user.status === 'banned') return alert("Banned.");
                     session = user;
-                    localStorage.setItem('cll_session', JSON.stringify(session)); // SAVE SESSION
-                    
-                    document.getElementById('authOverlay').style.display = 'none';
-                    document.getElementById('mainSidebar').style.display = 'flex';
-                    document.getElementById('mainBody').style.display = 'block';
-                    document.getElementById('un').innerText = user.u;
-                    document.getElementById('ur').innerText = user.r;
-                    
-                    document.getElementById('set_u').value = user.u;
-                    document.getElementById('set_p').value = user.p;
-
-                    if(['owner','admin','mod'].includes(user.r)) document.getElementById('adminPanelNav').style.display = 'block';
-                    sync();
-                } else alert("Invalid username or password.");
+                    localStorage.setItem('cll_session', JSON.stringify(session));
+                    location.reload();
+                } else alert("Invalid login.");
             });
         }
 
         function updateAccount() {
             const newU = document.getElementById('set_u').value.trim();
             const newP = document.getElementById('set_p').value;
-            if(!newU || !newP) return alert("Fields cannot be empty.");
-
             if(newU !== session.u) {
                 db.ref('users/' + newU).once('value', snap => {
-                    if(snap.exists()) return alert("Username already taken.");
-                    
-                    const updatedUser = { ...session, u: newU, p: newP };
-                    db.ref('users/' + newU).set(updatedUser).then(() => {
+                    if(snap.exists()) return alert("Username taken.");
+                    db.ref('users/' + newU).set({ ...session, u: newU, p: newP }).then(() => {
                         db.ref('users/' + session.u).remove();
-                        alert("Username changed. Please log in again.");
                         logout();
                     });
                 });
             } else {
-                db.ref('users/' + session.u + '/p').set(newP).then(() => {
-                    alert("Password updated!");
-                    session.p = newP;
-                    localStorage.setItem('cll_session', JSON.stringify(session));
-                });
+                db.ref('users/' + session.u + '/p').set(newP).then(() => { alert("Updated!"); session.p = newP; });
             }
         }
 
@@ -387,6 +440,7 @@
             db.ref('levels').on('value', snap => {
                 levels = snap.val() || [];
                 renderList();
+                renderLeaderboard();
                 document.getElementById('sr_lvl_select').innerHTML = levels.map(l => `<option>${l.n}</option>`).join('');
             });
             db.ref('records').on('value', snap => {
@@ -394,7 +448,10 @@
                 records = Object.entries(data).map(([k, v]) => ({...v, id: k}));
                 renderList();
                 renderLeaderboard();
-                if(session && ['owner','admin','mod'].includes(session.r)) renderQueues();
+                if(session && ['owner','admin','mod'].includes(session.r)) {
+                    renderQueues();
+                    renderManageRecords();
+                }
             });
             db.ref('lvlSubs').on('value', snap => {
                 const data = snap.val() || {};
@@ -405,77 +462,73 @@
                 users = Object.values(snap.val() || {});
                 renderUsers();
             });
-            
-            // UPDATED CHAT SYNC
             db.ref('chat').limitToLast(50).on('value', snap => {
                 const data = snap.val() || {};
                 const msgs = Object.entries(data).map(([k, v]) => ({...v, id: k}));
                 document.getElementById('chatBox').innerHTML = msgs.map(m => `
                     <div class="msg ${m.u === 'SYSTEM' ? 'system' : ''}">
-                        <div class="msg-u">
-                            <span>${m.u}</span>
-                            ${m.u !== session.u && m.u !== 'SYSTEM' ? `<i class="fa-solid fa-flag" style="cursor:pointer; color:var(--text-dim);" onclick="reportMsg('${m.id}', '${m.u}', '${m.m.replace(/'/g, "\\'")}')" title="Report"></i>` : ''}
-                        </div>
+                        <div class="msg-u"><span>${m.u}</span></div>
                         ${m.m}
                     </div>`).join('');
-                
                 const cb = document.getElementById('chatBox');
                 cb.scrollTop = cb.scrollHeight;
             });
+        }
 
-            // NEW REPORTS SYNC
-            if(session && ['owner','admin','mod'].includes(session.r)) {
-                db.ref('reports').on('value', snap => {
-                    const data = snap.val() || {};
-                    chatReports = Object.entries(data).map(([k, v]) => ({...v, id: k}));
-                    document.getElementById('rc').innerText = chatReports.length;
-                    renderReports();
-                });
+        // --- FORMER TOP 1 & LEVEL MANAGEMENT LOGIC ---
+        function saveLevels() {
+            // Automatic Former Top 1 Logic: If a level reaches Rank 1, tag it
+            if (levels.length > 0) {
+                levels[0].former = true; 
             }
+            db.ref('levels').set(levels);
         }
 
-        // NEW REPORTING SYSTEM LOGIC
-        function reportMsg(msgId, user, text) {
-            const reason = prompt(`Reason for reporting ${user}?`);
-            if(!reason) return;
-            db.ref('reports').push({ msgId, reportedUser: user, reportedBy: session.u, text, reason, time: Date.now() });
-            alert("Message reported to moderators.");
+        function editLvl(idx) {
+            const l = levels[idx];
+            const newN = prompt("Level Name:", l.n) || l.n;
+            const newC = prompt("Creator Name:", l.c) || l.c;
+            const newID = prompt("In-game ID:", l.lid) || l.lid;
+            const newF = prompt("Required FPS:", l.f) || l.f;
+            
+            // Allow staff to add custom tags/metadata here
+            levels[idx] = { ...l, n: newN, c: newC, lid: newID, f: newF };
+            saveLevels();
+            alert("Level updated!");
         }
 
-        function renderReports() {
-            document.getElementById('reportsCont').innerHTML = chatReports.map(r => `
+        // --- WR / RECORD MANAGEMENT LOGIC ---
+        function renderManageRecords() {
+            const approved = records.filter(r => r.s === 'approved');
+            document.getElementById('manageRecCont').innerHTML = approved.map(r => `
                 <div class="queue-item">
                     <div style="flex:1">
-                        <b style="color:var(--delete); font-size:1.1rem;">Reported User: ${r.reportedUser}</b>
-                        <p style="color:white; font-size:0.95rem; margin-top:8px; background:#050505; padding:10px; border-radius:5px; border:1px solid var(--border);">"${r.text}"</p>
-                        <p style="color:var(--text-dim); font-size:0.85rem; margin-top:8px;"><b>Reason:</b> ${r.reason} (by ${r.reportedBy})</p>
+                        <b style="color:var(--gold);">${r.u}</b> scored <b>${r.p}%</b> on <b>${r.l}</b>
+                        <p style="font-size:0.8rem; color:var(--text-dim);"><a href="${r.v}" target="_blank" style="color:var(--accent)">Proof Link</a></p>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:10px; margin-left:20px;">
-                        <button class="btn-mini btn-warn" onclick="warnUser('${r.reportedUser}', '${r.id}')">Warn</button>
-                        <button class="btn-mini btn-danger" onclick="banUserReport('${r.reportedUser}', '${r.id}')">Ban</button>
-                        <button class="btn-mini" style="background:#333;" onclick="dismissReport('${r.id}')">Dismiss</button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-mini btn-warn" onclick="editRecord('${r.id}')">Edit</button>
+                        <button class="btn-mini btn-danger" onclick="deleteRecord('${r.id}')">Delete</button>
                     </div>
                 </div>
-            `).join('') || '<p style="color:var(--text-dim)">No active reports. Good job!</p>';
+            `).join('') || '<p style="color:var(--text-dim)">No records to manage.</p>';
         }
 
-        function warnUser(u, reportId) {
-            db.ref('chat').push({ u: 'SYSTEM', m: `⚠️ User @${u} has been officially warned by staff.` });
-            dismissReport(reportId);
-            alert("User warned in chat.");
-        }
-
-        function banUserReport(u, reportId) {
-            if(confirm(`Are you sure you want to BAN ${u}?`)) {
-                toggleBan(u, false); // Ban them
-                db.ref('chat').push({ u: 'SYSTEM', m: `🔨 User @${u} has been banned from the panel.` });
-                sendWebhook("🔨 Member Banned", `**${u}** was banned by staff due to chat reports.`, 15158332);
-                dismissReport(reportId);
+        function editRecord(id) {
+            const rec = records.find(r => r.id === id);
+            const newP = prompt("Modify Percentage:", rec.p);
+            const newV = prompt("Modify Video Link:", rec.v);
+            if(newP !== null && newV !== null) {
+                db.ref('records/' + id).update({ p: parseFloat(newP), v: newV });
+                alert("Record updated!");
             }
         }
 
-        function dismissReport(id) { db.ref('reports/' + id).remove(); }
-
+        function deleteRecord(id) {
+            if(confirm("Are you sure you want to delete this record? This cannot be undone.")) {
+                db.ref('records/' + id).remove();
+            }
+        }
 
         function renderQueues() {
             const pendingRecs = records.filter(r => r.s === 'pending');
@@ -488,58 +541,36 @@
                     <div>
                         <b style="color:var(--accent); font-size:1.1rem;">${r.l}</b> - ${r.p}%
                         <p style="color:var(--text-dim); font-size:0.85rem; margin-top:4px;">Submitted by: ${r.u}</p>
-                        <a href="${r.v}" target="_blank" style="color:white; font-size:0.8rem; text-decoration:underline;">View Video Proof</a>
                     </div>
                     <div style="display:flex; gap:10px;">
                         <button class="btn-mini btn-success" onclick="resolveRecord('${r.id}', 'approved')">Approve</button>
                         <button class="btn-mini btn-danger" onclick="resolveRecord('${r.id}', 'rejected')">Reject</button>
                     </div>
                 </div>
-            `).join('') || '<p style="color:var(--text-dim)">No pending records.</p>';
+            `).join('');
 
             document.getElementById('pendLvlCont').innerHTML = pendingLvls.map(l => `
                 <div class="queue-item">
-                    <img src="${l.i || 'CLL.jpg'}" style="width:120px; height:70px; object-fit:cover; border-radius:8px; border:1px solid var(--border); margin-right:15px;">
                     <div style="flex:1">
-                        <b style="color:var(--accent); font-size:1.1rem;">${l.n}</b>
-                        <p style="color:var(--text-dim); font-size:0.85rem; margin-top:4px;">Creator: ${l.c} | ID: ${l.lid}</p>
+                        <b style="color:var(--accent); font-size:1.1rem;">${l.n}</b> by ${l.c}
                     </div>
                     <div style="display:flex; gap:10px;">
                         <button class="btn-mini btn-success" onclick="resolveLvl('${l.id}', 'approved')">Approve</button>
                         <button class="btn-mini btn-danger" onclick="resolveLvl('${l.id}', 'rejected')">Reject</button>
                     </div>
                 </div>
-            `).join('') || '<p style="color:var(--text-dim)">No pending levels.</p>';
+            `).join('');
         }
 
-        function resolveRecord(id, status) { 
-            db.ref('records/' + id + '/s').set(status); 
-            if(status === 'approved') {
-                const rec = records.find(r => r.id === id);
-                sendWebhook("🏆 Record Approved!", `**${rec.u}** just scored **${rec.p}%** on **${rec.l}**!`, 15844367);
-            }
-        }
+        function resolveRecord(id, status) { db.ref('records/' + id + '/s').set(status); }
         
-        // MODIFIED: Asks for position
         function resolveLvl(id, status) {
             if(status === 'approved') {
                 const sub = pendingLvlData.find(l => l.id === id);
-                
-                // Ask for rank position
-                let pos = prompt(`Where should ${sub.n} be placed?\nEnter a number (1 to ${levels.length + 1})`, 1);
-                if (pos === null) return; // User cancelled
-                
-                pos = parseInt(pos);
-                if (isNaN(pos) || pos < 1) pos = 1;
-                if (pos > levels.length + 1) pos = levels.length + 1;
-
+                let pos = parseInt(prompt(`Rank position (1 to ${levels.length + 1}):`, 1));
                 const newLvl = { n: sub.n, c: sub.c, lid: sub.lid, f: sub.f, i: sub.i };
-                
-                // Splice it precisely where they asked
                 levels.splice(pos - 1, 0, newLvl);
-                db.ref('levels').set(levels);
-
-                sendWebhook("🚀 New Level Added!", `**${sub.n}** by ${sub.c} has been officially placed at **#${pos}** on the list!`, 5793266);
+                saveLevels();
             }
             db.ref('lvlSubs/' + id + '/s').set(status);
         }
@@ -548,12 +579,8 @@
             const lvl = document.getElementById('sr_lvl_select').value;
             const p = parseFloat(document.getElementById('sr_p').value);
             const link = document.getElementById('sr_link').value;
-            if(!lvl || !p || !link) return alert("Fill all fields.");
-            const wr = getWR(lvl);
-            let finalStatus = 'pending';
-            if (wr && p < parseFloat(wr.p)) { finalStatus = 'rejected'; alert(`Rejected: Lower than WR (${wr.p}%).`); }
-            else alert("Sent for review!");
-            db.ref('records').push({ u: session.u, l: lvl, v: link, p: p, s: finalStatus });
+            db.ref('records').push({ u: session.u, l: lvl, v: link, p: p, s: 'pending' });
+            alert("Submitted!");
         }
 
         function sendLvlSub() {
@@ -566,6 +593,7 @@
             if(curFilter === 'cleared') filtered = filtered.filter(l => records.some(r => r.l === l.n && r.p == 100 && r.s === 'approved'));
             if(curFilter === 'uncleared') filtered = filtered.filter(l => !records.some(r => r.l === l.n && r.p == 100 && r.s === 'approved'));
             if(curFilter === 'former') filtered = filtered.filter(l => l.former);
+
             const isStaff = session && ['owner', 'admin', 'mod'].includes(session.r);
             document.getElementById('listCont').innerHTML = filtered.map((l, i) => {
                 const wr = getWR(l.n);
@@ -579,9 +607,16 @@
                             <span class="point-tag">${getPoints(l.rnk)}pts</span>
                         </div>
                         <p style="color:var(--text-dim); margin-top:5px;">by ${l.c}</p>
+                        ${l.former ? `<div class="former-tag"><i class="fa-solid fa-crown"></i> Former Top 1</div>` : ''}
                         ${wr ? `<div class="wr-badge">WR: ${wr.p}% by ${wr.u}</div>` : ''}
                     </div>
-                    ${isStaff ? `<div class="mgmt-controls"><button class="btn-mini" onclick="moveLvl(${l.rnk-1}, -1)">▲</button><button class="btn-mini" onclick="moveLvl(${l.rnk-1}, 1)">▼</button><button class="btn-mini btn-danger" onclick="deleteLvl(${l.rnk-1})">✕</button></div>` : ''}
+                    ${isStaff ? `
+                        <div class="mgmt-controls">
+                            <button class="btn-mini" onclick="moveLvl(${l.rnk-1}, -1)">▲</button>
+                            <button class="btn-mini" onclick="moveLvl(${l.rnk-1}, 1)">▼</button>
+                            <button class="btn-mini btn-warn" onclick="editLvl(${l.rnk-1})">Edit</button>
+                            <button class="btn-mini btn-danger" onclick="deleteLvl(${l.rnk-1})">✕</button>
+                        </div>` : ''}
                 </div>`;
             }).join('');
         }
@@ -591,7 +626,10 @@
             records.filter(r => r.s === 'approved').forEach(r => {
                 if(!players[r.u]) players[r.u] = { pts: 0, wrs: 0 };
                 const idx = levels.findIndex(l => l.n === r.l);
-                if(idx !== -1) { players[r.u].pts += getPoints(idx + 1) * (r.p / 100); if(r.p == 100) players[r.u].wrs++; }
+                if(idx !== -1) { 
+                    players[r.u].pts += getPoints(idx + 1) * (r.p / 100); 
+                    if(r.p == 100) players[r.u].wrs++; 
+                }
             });
             const sorted = Object.entries(players).sort((a,b) => b[1].pts - a[1].pts);
             document.getElementById('leaderCont').innerHTML = sorted.map((p, i) => `<tr><td>#${i+1}</td><td>${p[0]}</td><td style="color:var(--gold); font-weight:bold;">${p[1].pts.toFixed(2)}</td><td>${p[1].wrs}</td></tr>`).join('');
@@ -599,29 +637,16 @@
 
         function renderUsers() {
             const q = document.getElementById('userSearchInput').value.toLowerCase();
-            document.getElementById('userDirCont').innerHTML = users.filter(u => u.u.toLowerCase().includes(q)).map(u => {
-                const isAdmin = session && ['owner', 'admin'].includes(session.r);
-                const isRestricted = u.status === 'banned' || u.status === 'terminated';
-                let promoteBtn = '', demoteBtn = '';
-                if (isAdmin && u.u !== session.u && u.r !== 'owner') {
-                    if (u.r === 'user') promoteBtn = `<button class="btn-mini btn-warn" onclick="promoteUser('${u.u}', 'user')">Promote</button>`;
-                    if (u.r === 'mod' && session.r === 'owner') promoteBtn = `<button class="btn-mini btn-warn" onclick="promoteUser('${u.u}', 'mod')">Promote</button>`;
-                    if (u.r === 'mod') demoteBtn = `<button class="btn-mini btn-warn" onclick="demoteUser('${u.u}', 'mod')">Demote</button>`;
-                    if (u.r === 'admin' && session.r === 'owner') demoteBtn = `<button class="btn-mini btn-warn" onclick="demoteUser('${u.u}', 'admin')">Demote</button>`;
-                }
-                return `<tr><td>${u.u}</td><td>${u.r.toUpperCase()}</td><td>${u.status || 'Active'}</td><td>${isAdmin && u.u !== session.u && u.r !== 'owner' ? `${promoteBtn}${demoteBtn}<button class="btn-mini ${isRestricted ? 'btn-success' : 'btn-danger'}" onclick="toggleBan('${u.u}', ${u.status === 'banned'})">${u.status === 'banned' ? 'Unban' : 'Ban'}</button>` : '—'}</td></tr>`;
-            }).join('');
+            document.getElementById('userDirCont').innerHTML = users.filter(u => u.u.toLowerCase().includes(q)).map(u => `<tr><td>${u.u}</td><td>${u.r.toUpperCase()}</td><td>${u.status}</td><td>—</td></tr>`).join('');
         }
 
-        function promoteUser(u, cr) { let nr = cr === 'user' ? 'mod' : 'admin'; if(confirm(`Promote to ${nr}?`)) db.ref('users/'+u+'/r').set(nr); }
-        function demoteUser(u, cr) { let pr = cr === 'admin' ? 'mod' : 'user'; if(confirm(`Demote to ${pr}?`)) db.ref('users/'+u+'/r').set(pr); }
-        function toggleBan(u, isB) { db.ref('users/'+u+'/status').set(isB ? 'Active' : 'banned'); }
         function moveLvl(idx, dir) { 
             if(idx + dir < 0 || idx + dir >= levels.length) return;
             [levels[idx], levels[idx+dir]] = [levels[idx+dir], levels[idx]]; 
-            db.ref('levels').set(levels); 
+            saveLevels(); 
         }
-        function deleteLvl(idx) { if(confirm("Delete?")) { levels.splice(idx, 1); db.ref('levels').set(levels); }}
+
+        function deleteLvl(idx) { if(confirm("Delete?")) { levels.splice(idx, 1); saveLevels(); }}
         
         function navTo(id, el) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -629,32 +654,16 @@
             document.getElementById('v-' + id).classList.add('active');
             if(el) el.classList.add('active');
         }
+
         function setFilter(f, btn) { curFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderList(); }
         function handleFile(f) { const r = new FileReader(); r.onload = (e) => { curImg = e.target.result; document.getElementById('uploadStatus').innerText = "✓ Selected"; }; r.readAsDataURL(f); }
-        
         function sendChat() { 
             const i = document.getElementById('chatInput'); 
             if(!i.value.trim()) return; 
             db.ref('chat').push({ u: session.u, m: i.value }); 
             i.value = ""; 
         }
-        
-        function postAnn() { 
-            const msg = document.getElementById('annInput').value;
-            if(!msg) return;
-            db.ref('chat').push({ u: 'SYSTEM', m: `📢 **ANNOUNCEMENT:** ${msg}` });
-            document.getElementById('annInput').value = '';
-            alert("Announcement posted to chat"); 
-        }
-        
-        function toggleMaintenance() { db.ref('maintenance').once('value', s => db.ref('maintenance').set(!s.val())); }
-        
-        function logout() { 
-            localStorage.removeItem('cll_session'); // CLEAR SESSION
-            location.reload(); 
-        }
-        
-        function wipeChat() { if(confirm("Wipe?")) db.ref('chat').remove(); }
+        function logout() { localStorage.removeItem('cll_session'); location.reload(); }
     </script>
 </body>
 </html>
