@@ -360,7 +360,7 @@
         };
 
         function sendWebhook(title, desc, color) {
-            if(!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_DISCORD_WEBHOOK_URL_HERE") return;
+            if(!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "https://discord.com/api/webhooks/1502757681730031626/qi01GHmcXFCBLyquwc36V1aFHfwq58wamflzlaflx0FClvV9F91RtUT78cFmRjCddl8w") return;
             fetch(DISCORD_WEBHOOK_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
